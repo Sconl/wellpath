@@ -308,7 +308,7 @@ These are intentionally excluded from the MVP to preserve focus and maintain arc
 
 # License
 
-Specify license type (e.g., MIT) before public release.
+Here, I am thinking MIT Licence or Apache, both are open source, MIT being extremely permissive (If you, GRACE, are actually reading this code, research on the licenses and give me a recommendation by next saturday, that is the 7th of March)
 
 ---
 
