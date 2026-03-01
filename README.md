@@ -2,7 +2,7 @@
 
 WellPath is a minimal, high‑leverage fitness marketplace and personal wellness tracking application built with Flutter and Firebase.
 
-This repository contains the Android-first MVP of the product, along with its supporting Firebase backend configuration.
+This repository contains the web-first MVP of the product, along with its supporting Firebase backend configuration.
 
 The goal of this project is not to build a feature-heavy fitness application, but to intentionally ship the smallest system that can validate real value for both users and trainers.
 
