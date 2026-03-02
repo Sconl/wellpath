@@ -103,7 +103,7 @@ class _LandingPageState extends State<LandingPage>
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent,
+                    color: const Color.fromARGB(255, 255, 69, 58),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -152,18 +152,20 @@ class _LandingPageState extends State<LandingPage>
   Widget _headerRow() {
     return Row(
       children: [
-        AspectRatio(
-          aspectRatio: 3 / 1,
+        // constrained logo placeholder with explicit size (avoids AspectRatio issues)
+        SizedBox(
+          height: 60,
+          width: 180,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: Colors.white24),
-              color: Colors.white.withValues(alpha: 0.03),
+              color: const Color.fromARGB(8, 255, 255, 255),
             ),
             child: Row(
               children: const [
-                Icon(Icons.sports_gymnastics, size: 32, color: Colors.white70),
+                Icon(Icons.sports_gymnastics, size: 28, color: Colors.white70),
                 SizedBox(width: 12),
                 Text(
                   'WellPath',
@@ -205,6 +207,11 @@ class _LandingPageState extends State<LandingPage>
         const SizedBox(width: 16),
         ElevatedButton(
           onPressed: _onBeginValidation,
+          style: ElevatedButton.styleFrom(
+            elevation: 6,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          ),
           child: const Text('Begin Validation'),
         ),
       ],
@@ -270,27 +277,28 @@ class _LandingPageState extends State<LandingPage>
     if (scrollDirection == Axis.horizontal) {
       return ListView.separated(
         scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
         itemBuilder: (context, index) {
           final item = _timeline[index];
           return _timelineCard(index, item['title']!, item['desc']!, compact: true);
         },
-        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemCount: _timeline.length,
       );
     }
 
     return ListView.separated(
+      padding: const EdgeInsets.symmetric(vertical: 6),
       itemBuilder: (context, index) {
         final item = _timeline[index];
         return _timelineCard(index, item['title']!, item['desc']!, compact: false);
       },
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemCount: _timeline.length,
     );
   }
 
-  Widget _timelineCard(int index, String title, String desc,
-      {required bool compact}) {
+  Widget _timelineCard(int index, String title, String desc, {required bool compact}) {
     final isActive = index == _activeStep;
 
     return MouseRegion(
@@ -305,8 +313,8 @@ class _LandingPageState extends State<LandingPage>
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: isActive
-                ? Colors.white.withValues(alpha: 0.06)
-                : Colors.white.withValues(alpha: 0.02),
+                ? const Color.fromARGB(15, 255, 255, 255)
+                : const Color.fromARGB(5, 255, 255, 255),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isActive ? Colors.white24 : Colors.white10,
@@ -314,7 +322,7 @@ class _LandingPageState extends State<LandingPage>
             boxShadow: _hoverIndex == index
                 ? [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.25),
+                      color: const Color.fromARGB(64, 0, 0, 0),
                       blurRadius: 18,
                       offset: const Offset(0, 10),
                     )
@@ -370,7 +378,7 @@ class _LandingPageState extends State<LandingPage>
       key: ValueKey('detail-$i'),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
+        color: const Color.fromARGB(8, 255, 255, 255),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white12),
       ),
