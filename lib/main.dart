@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'WellPath — Provisional',
+      title: 'WellPath | Welcome',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
