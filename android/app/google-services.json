@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "210297441335",
+    "project_id": "wellpath-fitness",
+    "storage_bucket": "wellpath-fitness.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:210297441335:android:4a6986e80c0f0494a343b2",
+        "android_client_info": {
+          "package_name": "com.wellpath.wellpath"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRQbBOmMQiTkuvlDWcuiVe6OqrlsC4Wf8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
