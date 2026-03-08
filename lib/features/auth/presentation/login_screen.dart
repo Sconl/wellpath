@@ -31,7 +31,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/widgets/wellpath_background.dart';
-import '../auth_providers.dart';                        // authRepositoryProvider
+import '../auth_providers.dart'; // authRepositoryProvider
 import 'widgets/auth_widgets.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -47,18 +47,18 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   // ── Form ──────────────────────────────────────────────────────────────────
-  final _formKey            = GlobalKey<FormState>();
-  final _emailController    = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   // ── UI State ──────────────────────────────────────────────────────────────
-  bool    _isLoading    = false;
-  bool    _resetSending = false;
+  bool _isLoading = false;
+  bool _resetSending = false;
   String? _errorMessage;
 
   // ── Focus nodes ───────────────────────────────────────────────────────────
   final _emailFocus = FocusNode();
-  final _pwFocus    = FocusNode();
+  final _pwFocus = FocusNode();
 
   @override
   void dispose() {
@@ -75,15 +75,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
-      _isLoading    = true;
+      _isLoading = true;
       _errorMessage = null;
     });
 
     try {
       await ref.read(authRepositoryProvider).signIn(
-        email:    _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
       // GoRouter's authStateProvider redirect guard handles navigation.
       // No explicit context.go() here — avoids double-navigate race.
     } on FirebaseAuthException catch (e) {
@@ -100,8 +100,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _forgotPassword() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
-      setState(() =>
-          _errorMessage = 'Enter your email address above, then tap Forgot password.');
+      setState(() => _errorMessage =
+          'Enter your email address above, then tap Forgot password.');
       return;
     }
 
@@ -121,8 +121,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             backgroundColor: const Color(0xFF0A1F12),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -197,12 +197,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                 // ── Email ────────────────────────────────────────────────
                 WellPathField(
-                  controller:        _emailController,
-                  label:             'Email',
-                  focusNode:         _emailFocus,
-                  keyboardType:      TextInputType.emailAddress,
-                  textInputAction:   TextInputAction.next,
-                  autofocus:         true,
+                  controller: _emailController,
+                  label: 'Email',
+                  focusNode: _emailFocus,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofocus: true,
                   onEditingComplete: () => _pwFocus.requestFocus(),
                   prefixIcon: const Icon(
                     Icons.email_outlined,
@@ -210,7 +210,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     size: 20,
                   ),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Email is required';
+                    if (v == null || v.trim().isEmpty)
+                      return 'Email is required';
                     return null;
                   },
                 ),
@@ -218,11 +219,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                 // ── Password ─────────────────────────────────────────────
                 WellPathField(
-                  controller:        _passwordController,
-                  label:             'Password',
-                  obscureText:       true,
-                  focusNode:         _pwFocus,
-                  textInputAction:   TextInputAction.done,
+                  controller: _passwordController,
+                  label: 'Password',
+                  obscureText: true,
+                  focusNode: _pwFocus,
+                  textInputAction: TextInputAction.done,
                   onEditingComplete: _submit,
                   prefixIcon: const Icon(
                     Icons.lock_outline,
@@ -273,8 +274,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     decoration: BoxDecoration(
                       color: Colors.redAccent.withAlpha(20),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                          color: Colors.redAccent.withAlpha(60)),
+                      border: Border.all(color: Colors.redAccent.withAlpha(60)),
                     ),
                     child: Row(
                       children: [
@@ -299,7 +299,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                 // ── CTA ──────────────────────────────────────────────────
                 WellPathButton(
-                  label:     'Log In',
+                  label: 'Log In',
                   isLoading: _isLoading,
                   onPressed: _submit,
                 ),
@@ -378,7 +378,7 @@ class _TwoColumnLayout extends StatelessWidget {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: Image.asset(
-                      'assets/animated-gifs/login_digital_screen_male.gif',
+                      'assets/animated-gifs/sample.png',
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -400,11 +400,11 @@ class _TwoColumnLayout extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 // Stat pills
-                Wrap(
+                const Wrap(
                   spacing: 10,
                   runSpacing: 8,
                   alignment: WrapAlignment.center,
-                  children: const [
+                  children: [
                     _StatPill('🏆 Track Progress'),
                     _StatPill('📲 Instant Booking'),
                     _StatPill('🔔 Smart Reminders'),

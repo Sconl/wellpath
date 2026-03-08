@@ -379,11 +379,11 @@ class _TwoColumnLayout extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 // Feature pills
-                Wrap(
+                const Wrap(
                   spacing: 10,
                   runSpacing: 8,
                   alignment: WrapAlignment.center,
-                  children: const [
+                  children: [
                     _FeaturePill('🏋️ Discover Trainers'),
                     _FeaturePill('📅 Book Sessions'),
                     _FeaturePill('💧 Track Wellness'),
