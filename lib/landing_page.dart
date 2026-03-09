@@ -1,31 +1,110 @@
 // lib/landing_page.dart
-//
+
 // ─────────────────────────────────────────────────────────────────────────────
-// LandingPage — updated to use the shared WellPathBackground widget and UI tweaks.
+// CODE CHANGELOG: personal tracking — will be removed before submission.
 //
-// CHANGES vs previous version:
-//   • Typographic logo moved to top-left (observing horizontal margins).
-//   • Logo enlarged 1.5×.
-//   • Center menu items added: About, Features, Pricing — routed via GoRouter.
-//   • Begin Journey button moved to top-right (aligned to page margins).
-//   • Added a FloatingActionButton.extended (bottom-right) for developer feedback/chat.
-//   • Fixed syntax issues and small lint.
+//   • CONFIG block added at top — all tunable values now live there.
+//   • Timeline compressed: W4–W10 end by April 17 (mid-April). W1–W3 untouched.
+//   • _projectLaunch updated to April 17 to match compressed schedule.
+//   • Animated GIF header added above subtitle via Image.asset(kHeaderGifPath).
+//   • Subtitle lowercased and font size reduced to kSubtitleFontSize (11.5).
+//   • All hardcoded literals across widgets replaced with config references.
+//   • Reusable extraction candidates documented in REFACTOR NOTE at bottom.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'core/widgets/wellpath_background.dart'; // ← replaces the inline impl
-
+import 'core/widgets/wellpath_background.dart';
 import 'package:go_router/go_router.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIG — change values here, not inside widgets
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// This is your single source of truth for everything tunable on this page.
+// Need to rebrand? Change colors here. Adjust layout? Change padding here.
+// New asset path? One line. Nothing else in this file needs touching.
+
+// ── Project schedule ──────────────────────────────────────────────────────────
+final DateTime kProjectStart  = DateTime(2026, 2, 23);
+final DateTime kProjectLaunch = DateTime(2026, 4, 17); // compressed: mid-April
+
+// ── Branding / copy ───────────────────────────────────────────────────────────
+const String kLogoPartBold  = 'Well';
+const String kLogoPartLight = 'Path';
+
+const String kSubtitleText  =
+    'a web-based integrated fitness and wellness platform:\n'
+    'a case study of wellpath';
+
+const String kAuthorName = 'Grace Miriri';
+const String kAuthorId   = 'BSIT/445J/2020';
+
+const String kCountdownLabel = 'Countdown to Launch:';
+const String kRoadmapLabel   = 'Roadmap';
+const String kProgressLabel  = 'Overall Sprint Progress';
+
+// ── Assets ────────────────────────────────────────────────────────────────────
+// Declare this path in pubspec.yaml under flutter > assets.
+const String kHeaderGifPath =
+    'assets/20260213_asset_animated_text_github_header_sconl_v1.1.0.gif';
+
+// ── Navigation items ─────────────────────────────────────────────────────────
+// Add or remove entries here; the nav bar builds from this list.
+const List<(String label, String route)> kNavItems = [
+  ('About',    '/about'),
+  ('Features', '/features'),
+  ('Pricing',  '/pricing'),
+];
+
+// ── Layout ────────────────────────────────────────────────────────────────────
+const double kPageMaxWidth  = 1100.0;
+const double kPagePaddingH  = 60.0;
+const double kPagePaddingV  = 32.0;
+
+const double kCardWidth   = 200.0;
+const double kCardSpacing = 16.0;
+const double kCardHeight  = 185.0;
+
+// ── Typography ────────────────────────────────────────────────────────────────
+const double kLogoFontSize        = 48.0;
+const double kSubtitleFontSize    = 11.5;
+const double kCountdownFontSize   = 20.0;
+const double kRoadmapTitleSize    = 22.0;
+const double kNavFontSize         = 14.0;
+const double kBeginBtnFontSize    = 15.0;
+const double kAuthorFontSize      = 13.0;
+const double kAuthorLetterSpacing = 1.0;
+
+// ── Colors ────────────────────────────────────────────────────────────────────
+const Color kBrandGreen      = Color(0xFF00CC66);
+const Color kBrandGreenLight = Color(0xFF00FF99);
+const Color kBrandGreenDark  = Color(0xFF009944);
+const Color kBrandGreenGlow  = Color(0x5500CC66);
+const Color kCardBgDefault   = Color.fromARGB(190, 1, 20, 10);
+const Color kCardBgHover     = Color.fromARGB(220, 2, 28, 14);
+const Color kModalBg         = Color(0xFF020E08);
+const Color kBtnTextDark     = Color(0xFF001A0A);
+
+// ── Begin Journey button ──────────────────────────────────────────────────────
+const double kBeginBtnPaddingH = 36.0;
+const double kBeginBtnPaddingV = 14.0;
+const double kBeginBtnRadius   = 50.0;
+
+// ── Header GIF ────────────────────────────────────────────────────────────────
+// Adjust these if you want the gif displayed at a different size.
+const double kHeaderGifWidth  = 340.0;
+const double kHeaderGifHeight = 80.0; // set to null to let it size naturally
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Project schedule constants
 // ─────────────────────────────────────────────────────────────────────────────
+// Aliased from config so internal references still read naturally.
 
-final DateTime _projectStart = DateTime(2026, 2, 23);
-final DateTime _projectLaunch = DateTime(2026, 5, 1);
+final DateTime _projectStart  = kProjectStart;
+final DateTime _projectLaunch = kProjectLaunch;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data Models
@@ -72,34 +151,25 @@ class _Phase {
 
   String statusEmojiAt(DateTime now) {
     switch (statusAt(now)) {
-      case _PhaseStatus.completed:
-        return "✅";
-      case _PhaseStatus.active:
-        return "🚧";
-      case _PhaseStatus.pending:
-        return "⏳";
+      case _PhaseStatus.completed:  return '✅';
+      case _PhaseStatus.active:     return '🚧';
+      case _PhaseStatus.pending:    return '⏳';
     }
   }
 
   String statusLabelAt(DateTime now) {
     switch (statusAt(now)) {
-      case _PhaseStatus.completed:
-        return "Completed";
-      case _PhaseStatus.active:
-        return "Active Development";
-      case _PhaseStatus.pending:
-        return "Pending";
+      case _PhaseStatus.completed:  return 'Completed';
+      case _PhaseStatus.active:     return 'Active Development';
+      case _PhaseStatus.pending:    return 'Pending';
     }
   }
 
   Color statusColorAt(DateTime now) {
     switch (statusAt(now)) {
-      case _PhaseStatus.completed:
-        return Colors.greenAccent;
-      case _PhaseStatus.active:
-        return Colors.orangeAccent;
-      case _PhaseStatus.pending:
-        return Colors.white54;
+      case _PhaseStatus.completed:  return Colors.greenAccent;
+      case _PhaseStatus.active:     return Colors.orangeAccent;
+      case _PhaseStatus.pending:    return Colors.white54;
     }
   }
 }
@@ -107,401 +177,180 @@ class _Phase {
 // ─────────────────────────────────────────────────────────────────────────────
 // Phase definitions
 // ─────────────────────────────────────────────────────────────────────────────
+//
+// W1 and W2 are completed — dates unchanged.
+// W3 is the active week — dates unchanged (Day 11 is current task).
+// W4 onwards: compressed to land by April 17.
 
 final List<_Phase> _phases = [
-  // ── WEEK 1 ──
+
+  // ── WEEK 1 — COMPLETED (unchanged) ──
   _Phase(
-    title: "Week 1: Firebase & Flutter Init",
+    title: 'Week 1: Firebase & Flutter Init',
     description:
-        "Firebase projects created, Flutter initialized, email/password auth working, user documents auto-created in Firestore.",
+        'Firebase projects created, Flutter initialized, email/password auth working, '
+        'user documents auto-created in Firestore.',
     startDate: DateTime(2026, 2, 23),
-    endDate: DateTime(2026, 2, 27),
+    endDate:   DateTime(2026, 2, 27),
     milestones: [
-      _Milestone(
-        title: "Day 1 — Firebase Setup",
-        date: DateTime(2026, 2, 23),
-        description:
-            "Create wellpath-dev and wellpath-prod Firebase projects, enable Email/Password Auth, create Firestore DB in test mode, install and login Firebase CLI.",
-      ),
-      _Milestone(
-        title: "Day 2 — Flutter Project Setup",
-        date: DateTime(2026, 2, 24),
-        description:
-            "Create Flutter project, add pubspec.yaml dependencies (firebase_core, firebase_auth, cloud_firestore, flutter_riverpod, go_router), run FlutterFire CLI to generate firebase_options.dart.",
-      ),
-      _Milestone(
-        title: "Day 3 — Authentication UI",
-        date: DateTime(2026, 2, 25),
-        description:
-            "Build AuthRepository (signUp, signIn, signOut, authStateChanges stream), create authRepositoryProvider and authStateProvider in Riverpod, build signup screen with email/password/displayName fields.",
-      ),
-      _Milestone(
-        title: "Day 4 — Firestore User Creation",
-        date: DateTime(2026, 2, 26),
-        description:
-            "Auto-create users/{uid} document on signup (uid, email, displayName, role: 'user', preferences: {dailyReminderEnabled, reminderTime}), build login screen, configure GoRouter with auth redirect guard. ← Current progress",
-      ),
-      _Milestone(
-        title: "Day 5 — Auth Testing & Commit",
-        date: DateTime(2026, 2, 27),
-        description:
-            "Full auth flow test: signup → Firestore document verify → logout → login. Handle all error cases. Add loading states. Retrospective + git commit.",
-      ),
+      _Milestone(title: 'Day 1 — Firebase Setup',         date: DateTime(2026, 2, 23), description: 'Create wellpath-dev and wellpath-prod Firebase projects, enable Email/Password Auth, create Firestore DB in test mode, install and login Firebase CLI.'),
+      _Milestone(title: 'Day 2 — Flutter Project Setup',  date: DateTime(2026, 2, 24), description: 'Create Flutter project, add pubspec.yaml dependencies (firebase_core, firebase_auth, cloud_firestore, flutter_riverpod, go_router), run FlutterFire CLI to generate firebase_options.dart.'),
+      _Milestone(title: 'Day 3 — Authentication UI',      date: DateTime(2026, 2, 25), description: 'Build AuthRepository (signUp, signIn, signOut, authStateChanges stream), create authRepositoryProvider and authStateProvider in Riverpod, build signup screen with email/password/displayName fields.'),
+      _Milestone(title: 'Day 4 — Firestore User Creation',date: DateTime(2026, 2, 26), description: "Auto-create users/{uid} document on signup (uid, email, displayName, role: 'user', preferences: {dailyReminderEnabled, reminderTime}), build login screen, configure GoRouter with auth redirect guard."),
+      _Milestone(title: 'Day 5 — Auth Testing & Commit',  date: DateTime(2026, 2, 27), description: 'Full auth flow test: signup → Firestore document verify → logout → login. Handle all error cases. Add loading states. Retrospective + git commit.'),
     ],
   ),
 
-  // ── WEEK 2 ──
+  // ── WEEK 2 — COMPLETED (unchanged) ──
   _Phase(
-    title: "Week 2: Auth Hardening & Roles",
+    title: 'Week 2: Auth Hardening & Roles',
     description:
-        "Role-based access control (user/trainer), custom JWT claims, user profile screen, protected routing, robust error handling.",
+        'Role-based access control (user/trainer), custom JWT claims, user profile screen, '
+        'protected routing, robust error handling.',
     startDate: DateTime(2026, 3, 2),
-    endDate: DateTime(2026, 3, 6),
+    endDate:   DateTime(2026, 3, 6),
     milestones: [
-      _Milestone(
-        title: "Day 6 — Role-Based Access Control",
-        date: DateTime(2026, 3, 2),
-        description:
-            "Implement custom JWT claims for user/trainer roles via Cloud Function (setUserRole). Write Firestore security rules. Deploy to emulator and verify.",
-      ),
-      _Milestone(
-        title: "Day 7 — User Profile Screen",
-        date: DateTime(2026, 3, 3),
-        description:
-            "Build ProfileScreen wired to Firestore users/{uid} stream. Add edit profile form with updateDisplayName and Firestore sync.",
-      ),
-      _Milestone(
-        title: "Day 8 — Error Handling & Loading",
-        date: DateTime(2026, 3, 4),
-        description:
-            "Create global LoadingIndicator widget, ErrorWidget with retry action, shimmer placeholders. Apply consistently across auth and profile screens.",
-      ),
-      _Milestone(
-        title: "Day 9 — GoRouter Guards",
-        date: DateTime(2026, 3, 5),
-        description:
-            "Add protected route redirect (unauthenticated → /login). Configure /signup, /login, /home, /profile routes. Test deep link preservation.",
-      ),
-      _Milestone(
-        title: "Day 10 — Week 2 Integration Test",
-        date: DateTime(2026, 3, 6),
-        description:
-            "End-to-end: role claim assignment, Firestore rules in emulator, GoRouter redirects verified. Retrospective + commit.",
-      ),
+      _Milestone(title: 'Day 6 — Role-Based Access Control', date: DateTime(2026, 3, 2), description: 'Implement custom JWT claims for user/trainer roles via Cloud Function (setUserRole). Write Firestore security rules. Deploy to emulator and verify.'),
+      _Milestone(title: 'Day 7 — User Profile Screen',       date: DateTime(2026, 3, 3), description: 'Build ProfileScreen wired to Firestore users/{uid} stream. Add edit profile form with updateDisplayName and Firestore sync.'),
+      _Milestone(title: 'Day 8 — Error Handling & Loading',  date: DateTime(2026, 3, 4), description: 'Create global LoadingIndicator widget, ErrorWidget with retry action, shimmer placeholders. Apply consistently across auth and profile screens.'),
+      _Milestone(title: 'Day 9 — GoRouter Guards',           date: DateTime(2026, 3, 5), description: 'Add protected route redirect (unauthenticated → /login). Configure /signup, /login, /home, /profile routes. Test deep link preservation.'),
+      _Milestone(title: 'Day 10 — Week 2 Integration Test',  date: DateTime(2026, 3, 6), description: 'End-to-end: role claim assignment, Firestore rules in emulator, GoRouter redirects verified. Retrospective + commit.'),
     ],
   ),
 
-  // ── WEEK 3 ──
+  // ── WEEK 3 — ACTIVE (unchanged — Day 11 is current) ──
   _Phase(
-    title: "Week 3: Data Architecture & Discovery",
+    title: 'Week 3: Data Architecture & Discovery',
     description:
-        "Trainer and slot models, Firestore indexes and rules hardened, sample data seeded, trainer list and profile screens built.",
+        'Trainer and slot models, Firestore indexes and rules hardened, '
+        'sample data seeded, trainer list and profile screens built.',
     startDate: DateTime(2026, 3, 9),
-    endDate: DateTime(2026, 3, 13),
+    endDate:   DateTime(2026, 3, 13),
     milestones: [
-      _Milestone(
-        title: "Day 11 — Trainer & Slot Models",
-        date: DateTime(2026, 3, 9),
-        description: "Create Trainer and AvailabilitySlot models. Seed 5 Mombasa trainers and 10+ availability slots.",
-      ),
-      _Milestone(
-        title: "Day 12 — Firestore Indexes & Repos",
-        date: DateTime(2026, 3, 10),
-        description:
-            "Add compound indexes, write security rules, build TrainerRepository with Riverpod StreamProviders.",
-      ),
-      _Milestone(
-        title: "Day 13 — Trainer List Screen",
-        date: DateTime(2026, 3, 11),
-        description:
-            "Build TrainerListScreen with ListView.builder, TrainerCard, specialty filter chips, search TextField.",
-      ),
-      _Milestone(
-        title: "Day 14 — Trainer Profile Screen",
-        date: DateTime(2026, 3, 12),
-        description:
-            "Build TrainerProfileScreen with full avatar, bio, availability section, 'View Availability' CTA. Wire /trainer/:id route.",
-      ),
-      _Milestone(
-        title: "Day 15 — Responsive Layout",
-        date: DateTime(2026, 3, 13),
-        description:
-            "Implement LayoutBuilder breakpoints. Full discovery navigation test. Retrospective + commit.",
-      ),
+      _Milestone(title: 'Day 11 — Trainer & Slot Models',   date: DateTime(2026, 3, 9),  description: 'Create Trainer and AvailabilitySlot models. Seed 5 Mombasa trainers and 10+ availability slots.'),
+      _Milestone(title: 'Day 12 — Firestore Indexes & Repos',date: DateTime(2026, 3, 10), description: 'Add compound indexes, write security rules, build TrainerRepository with Riverpod StreamProviders.'),
+      _Milestone(title: 'Day 13 — Trainer List Screen',     date: DateTime(2026, 3, 11), description: 'Build TrainerListScreen with ListView.builder, TrainerCard, specialty filter chips, search TextField.'),
+      _Milestone(title: 'Day 14 — Trainer Profile Screen',  date: DateTime(2026, 3, 12), description: "Build TrainerProfileScreen with full avatar, bio, availability section, 'View Availability' CTA. Wire /trainer/:id route."),
+      _Milestone(title: 'Day 15 — Responsive Layout',       date: DateTime(2026, 3, 13), description: 'Implement LayoutBuilder breakpoints. Full discovery navigation test. Retrospective + commit.'),
     ],
   ),
 
-  // ── WEEK 4 ──
+  // ── WEEK 4 — compressed: Mar 14–18 ──
   _Phase(
-    title: "Week 4: Booking Flow",
+    title: 'Week 4: Booking Flow',
     description:
-        "AvailabilityRepository, Cloud Function createBooking with atomic transaction, booking UI, My Bookings, trainer view.",
-    startDate: DateTime(2026, 3, 16),
-    endDate: DateTime(2026, 3, 20),
+        'AvailabilityRepository, Cloud Function createBooking with atomic transaction, '
+        'booking UI, My Bookings, trainer view.',
+    startDate: DateTime(2026, 3, 14),
+    endDate:   DateTime(2026, 3, 18),
     milestones: [
-      _Milestone(
-        title: "Day 16 — Availability Repository",
-        date: DateTime(2026, 3, 16),
-        description:
-            "Build AvailabilityRepository and wire availableSlotsProvider. Add slot cards to TrainerProfileScreen.",
-      ),
-      _Milestone(
-        title: "Day 17 — createBooking Cloud Function",
-        date: DateTime(2026, 3, 17),
-        description: "Implement createBooking with full Firestore transaction. Deploy to dev.",
-      ),
-      _Milestone(
-        title: "Day 18 — Booking Client UI",
-        date: DateTime(2026, 3, 18),
-        description:
-            "Build BookingRepository, wire 'Book' button with loading and SnackBar feedback.",
-      ),
-      _Milestone(
-        title: "Day 19 — My Bookings & Trainer View",
-        date: DateTime(2026, 3, 19),
-        description:
-            "Build MyBookingsScreen and TrainerBookingsScreen with confirm/cancel actions.",
-      ),
-      _Milestone(
-        title: "Day 20 — Race Condition Testing",
-        date: DateTime(2026, 3, 20),
-        description:
-            "Concurrent createBooking test, full booking end-to-end test. Retrospective + commit.",
-      ),
+      _Milestone(title: 'Day 16 — Availability Repository',      date: DateTime(2026, 3, 14), description: 'Build AvailabilityRepository and wire availableSlotsProvider. Add slot cards to TrainerProfileScreen.'),
+      _Milestone(title: 'Day 17 — createBooking Cloud Function', date: DateTime(2026, 3, 15), description: 'Implement createBooking with full Firestore transaction. Deploy to dev.'),
+      _Milestone(title: 'Day 18 — Booking Client UI',            date: DateTime(2026, 3, 16), description: "Build BookingRepository, wire 'Book' button with loading and SnackBar feedback."),
+      _Milestone(title: 'Day 19 — My Bookings & Trainer View',   date: DateTime(2026, 3, 17), description: 'Build MyBookingsScreen and TrainerBookingsScreen with confirm/cancel actions.'),
+      _Milestone(title: 'Day 20 — Race Condition Testing',       date: DateTime(2026, 3, 18), description: 'Concurrent createBooking test, full booking end-to-end test. Retrospective + commit.'),
     ],
   ),
 
-  // ── WEEK 5 ──
+  // ── WEEK 5 — compressed: Mar 19–23 ──
   _Phase(
-    title: "Week 5: Wellness Logging",
+    title: 'Week 5: Wellness Logging',
     description:
-        "Three log forms (workout, water, sleep), WellnessRepository, weekly summary dashboard, goal setting, calendar heat-map.",
-    startDate: DateTime(2026, 3, 23),
-    endDate: DateTime(2026, 3, 27),
+        'Three log forms (workout, water, sleep), WellnessRepository, '
+        'weekly summary dashboard, goal setting, calendar heat-map.',
+    startDate: DateTime(2026, 3, 19),
+    endDate:   DateTime(2026, 3, 23),
     milestones: [
-      _Milestone(
-        title: "Day 21 — Wellness Models & Log Forms",
-        date: DateTime(2026, 3, 23),
-        description:
-            "Create WellnessLog and Goal models. Build WorkoutLogForm, WaterLogForm, SleepLogForm. Each < 10s UX target.",
-      ),
-      _Milestone(
-        title: "Day 22 — Wellness Repository",
-        date: DateTime(2026, 3, 24),
-        description:
-            "Build WellnessRepository: createLog writes to users/{uid}/wellnessLogs. Wire providers.",
-      ),
-      _Milestone(
-        title: "Day 23 — Weekly Dashboard",
-        date: DateTime(2026, 3, 25),
-        description:
-            "Build WellnessDashboardScreen with prev/next week navigation. Real-time stream updates.",
-      ),
-      _Milestone(
-        title: "Day 24 — Goals & Calendar Heat-Map",
-        date: DateTime(2026, 3, 26),
-        description:
-            "Build GoalSettingSheet, animated LinearProgressIndicator, 7-day calendar row. Enable offline persistence.",
-      ),
-      _Milestone(
-        title: "Day 25 — Wellness Review",
-        date: DateTime(2026, 3, 27),
-        description:
-            "Test all three log forms, dashboard accuracy, offline queue sync. Retrospective + commit.",
-      ),
+      _Milestone(title: 'Day 21 — Wellness Models & Log Forms', date: DateTime(2026, 3, 19), description: 'Create WellnessLog and Goal models. Build WorkoutLogForm, WaterLogForm, SleepLogForm. Each < 10s UX target.'),
+      _Milestone(title: 'Day 22 — Wellness Repository',         date: DateTime(2026, 3, 20), description: 'Build WellnessRepository: createLog writes to users/{uid}/wellnessLogs. Wire providers.'),
+      _Milestone(title: 'Day 23 — Weekly Dashboard',            date: DateTime(2026, 3, 21), description: 'Build WellnessDashboardScreen with prev/next week navigation. Real-time stream updates.'),
+      _Milestone(title: 'Day 24 — Goals & Calendar Heat-Map',   date: DateTime(2026, 3, 22), description: 'Build GoalSettingSheet, animated LinearProgressIndicator, 7-day calendar row. Enable offline persistence.'),
+      _Milestone(title: 'Day 25 — Wellness Review',             date: DateTime(2026, 3, 23), description: 'Test all three log forms, dashboard accuracy, offline queue sync. Retrospective + commit.'),
     ],
   ),
 
-  // ── WEEK 6 ──
+  // ── WEEK 6 — compressed: Mar 24–28 ──
   _Phase(
-    title: "Week 6: Notifications & Reminders",
+    title: 'Week 6: Notifications & Reminders',
     description:
-        "FCM web setup, booking confirmation push, daily wellness reminder Cloud Scheduler, settings screen, cancellation notifications.",
-    startDate: DateTime(2026, 3, 30),
-    endDate: DateTime(2026, 4, 3),
+        'FCM web setup, booking confirmation push, daily wellness reminder '
+        'Cloud Scheduler, settings screen, cancellation notifications.',
+    startDate: DateTime(2026, 3, 24),
+    endDate:   DateTime(2026, 3, 28),
     milestones: [
-      _Milestone(
-        title: "Day 26 — FCM Setup & Token Storage",
-        date: DateTime(2026, 3, 30),
-        description:
-            "Add VAPID key, configure service worker, initialize FirebaseMessaging. Store FCM token in Firestore.",
-      ),
-      _Milestone(
-        title: "Day 27 — Booking Push Trigger",
-        date: DateTime(2026, 3, 31),
-        description:
-            "Deploy onBookingCreated Firestore trigger: send push to user and trainer.",
-      ),
-      _Milestone(
-        title: "Day 28 — FCM Message Handling",
-        date: DateTime(2026, 4, 1),
-        description:
-            "Handle FCM in foreground, background, terminated state. Navigate on notification tap.",
-      ),
-      _Milestone(
-        title: "Day 29 — Daily Reminder & Settings",
-        date: DateTime(2026, 4, 2),
-        description:
-            "Deploy sendDailyReminder Cloud Scheduler. Build NotificationSettingsScreen with toggle + TimePickerDialog.",
-      ),
-      _Milestone(
-        title: "Day 30 — Notifications Full Test",
-        date: DateTime(2026, 4, 3),
-        description:
-            "End-to-end booking push test. Manually trigger Cloud Scheduler. Retrospective + commit.",
-      ),
+      _Milestone(title: 'Day 26 — FCM Setup & Token Storage', date: DateTime(2026, 3, 24), description: 'Add VAPID key, configure service worker, initialize FirebaseMessaging. Store FCM token in Firestore.'),
+      _Milestone(title: 'Day 27 — Booking Push Trigger',      date: DateTime(2026, 3, 25), description: 'Deploy onBookingCreated Firestore trigger: send push to user and trainer.'),
+      _Milestone(title: 'Day 28 — FCM Message Handling',      date: DateTime(2026, 3, 26), description: 'Handle FCM in foreground, background, terminated state. Navigate on notification tap.'),
+      _Milestone(title: 'Day 29 — Daily Reminder & Settings', date: DateTime(2026, 3, 27), description: "Deploy sendDailyReminder Cloud Scheduler. Build NotificationSettingsScreen with toggle + TimePickerDialog."),
+      _Milestone(title: 'Day 30 — Notifications Full Test',   date: DateTime(2026, 3, 28), description: 'End-to-end booking push test. Manually trigger Cloud Scheduler. Retrospective + commit.'),
     ],
   ),
 
-  // ── WEEK 7 ──
+  // ── WEEK 7 — compressed: Mar 29–Apr 2 ──
   _Phase(
-    title: "Week 7: UI Polish & Performance",
+    title: 'Week 7: UI Polish & Performance',
     description:
-        "UI consistency pass, micro-animations, empty states, mobile testing, Lighthouse optimization, Firestore query tuning.",
-    startDate: DateTime(2026, 4, 6),
-    endDate: DateTime(2026, 4, 10),
+        'UI consistency pass, micro-animations, empty states, '
+        'mobile testing, Lighthouse optimization, Firestore query tuning.',
+    startDate: DateTime(2026, 3, 29),
+    endDate:   DateTime(2026, 4, 2),
     milestones: [
-      _Milestone(
-        title: "Day 31 — UI Consistency Pass",
-        date: DateTime(2026, 4, 6),
-        description: "Audit all screens for typography, spacing, color. Fix layout overflows.",
-      ),
-      _Milestone(
-        title: "Day 32 — Micro-Animations & Empty States",
-        date: DateTime(2026, 4, 7),
-        description:
-            "Add success micro-animation on log save and booking. Build empty state widgets.",
-      ),
-      _Milestone(
-        title: "Day 33 — Mobile Device Testing",
-        date: DateTime(2026, 4, 8),
-        description: "Test on physical Android/iOS. Fix tap targets, keyboard-covering fields.",
-      ),
-      _Milestone(
-        title: "Day 34 — Lighthouse & Firestore Opt",
-        date: DateTime(2026, 4, 9),
-        description:
-            "Run Lighthouse audit. Enable Flutter web deferred loading. Verify < 2s page loads.",
-      ),
-      _Milestone(
-        title: "Day 35 — Polish Review",
-        date: DateTime(2026, 4, 10),
-        description:
-            "Full visual walkthrough. Accessibility check. Performance targets confirmed. Retrospective + commit.",
-      ),
+      _Milestone(title: 'Day 31 — UI Consistency Pass',          date: DateTime(2026, 3, 29), description: 'Audit all screens for typography, spacing, color. Fix layout overflows.'),
+      _Milestone(title: 'Day 32 — Micro-Animations & Empty States',date: DateTime(2026, 3, 30), description: 'Add success micro-animation on log save and booking. Build empty state widgets.'),
+      _Milestone(title: 'Day 33 — Mobile Device Testing',        date: DateTime(2026, 3, 31), description: 'Test on physical Android/iOS. Fix tap targets, keyboard-covering fields.'),
+      _Milestone(title: 'Day 34 — Lighthouse & Firestore Opt',   date: DateTime(2026, 4, 1),  description: 'Run Lighthouse audit. Enable Flutter web deferred loading. Verify < 2s page loads.'),
+      _Milestone(title: 'Day 35 — Polish Review',                date: DateTime(2026, 4, 2),  description: 'Full visual walkthrough. Accessibility check. Performance targets confirmed. Retrospective + commit.'),
     ],
   ),
 
-  // ── WEEK 8 ──
+  // ── WEEK 8 — compressed: Apr 3–7 ──
   _Phase(
-    title: "Week 8: Analytics & Security",
+    title: 'Week 8: Analytics & Security',
     description:
-        "Firebase Analytics instrumentation, Crashlytics, performance monitoring, Firestore rules test suite, security audit.",
+        'Firebase Analytics instrumentation, Crashlytics, performance monitoring, '
+        'Firestore rules test suite, security audit.',
+    startDate: DateTime(2026, 4, 3),
+    endDate:   DateTime(2026, 4, 7),
+    milestones: [
+      _Milestone(title: 'Day 36 — Analytics Instrumentation', date: DateTime(2026, 4, 3), description: 'Instrument key events: booking_created, wellness_log_created, user_signup, trainer_profile_viewed.'),
+      _Milestone(title: 'Day 37 — Crashlytics & Performance', date: DateTime(2026, 4, 4), description: 'Configure Crashlytics and FirebasePerformance. Set up custom trace for createBooking.'),
+      _Milestone(title: 'Day 38 — Firestore Rules Test Suite',date: DateTime(2026, 4, 5), description: 'Write @firebase/rules-unit-testing tests. All tests pass in emulator.'),
+      _Milestone(title: 'Day 39 — Security Audit',            date: DateTime(2026, 4, 6), description: 'Audit Cloud Functions, CORS config, Hosting security headers. Attempt known attack vectors.'),
+      _Milestone(title: 'Day 40 — Security Sign-Off',         date: DateTime(2026, 4, 7), description: 'Fix all audit findings. Re-run rules test suite. Zero critical issues. Retrospective + commit.'),
+    ],
+  ),
+
+  // ── WEEK 9 — compressed: Apr 8–12 ──
+  _Phase(
+    title: 'Week 9: UAT & Bug Fixing',
+    description:
+        'UAT with 5 participants, feedback collection, '
+        'bug triage, critical/high severity fixes, regression testing.',
+    startDate: DateTime(2026, 4, 8),
+    endDate:   DateTime(2026, 4, 12),
+    milestones: [
+      _Milestone(title: 'Day 41 — UAT Preparation',       date: DateTime(2026, 4, 8),  description: 'Prepare UAT environment, seed data, create 5 participant accounts. Write test scenarios.'),
+      _Milestone(title: 'Day 42 — UAT Session: Users',    date: DateTime(2026, 4, 9),  description: 'Facilitate UAT with 3 regular users. Scenarios 1 & 2 (Discovery & Booking, Wellness Logging).'),
+      _Milestone(title: 'Day 43 — UAT Session: Trainers', date: DateTime(2026, 4, 10), description: 'Facilitate UAT with 2 trainers. Scenario 3 (Availability, bookings, confirm/cancel).'),
+      _Milestone(title: 'Day 44 — Bug Triage & Fixes',    date: DateTime(2026, 4, 11), description: 'Categorize findings by severity. Fix all critical and high bugs. Regression test.'),
+      _Milestone(title: 'Day 45 — Final Regression',      date: DateTime(2026, 4, 12), description: 'Full regression test after fixes. Prepare production deployment checklist. Retrospective + commit.'),
+    ],
+  ),
+
+  // ── WEEK 10 — compressed: Apr 13–17 ──
+  _Phase(
+    title: 'Week 10: Production Launch',
+    description:
+        'Production Firebase config, Cloud Functions deployed, Flutter web release build, '
+        'Firebase Hosting live, v1.0.0 tagged.',
     startDate: DateTime(2026, 4, 13),
-    endDate: DateTime(2026, 4, 17),
+    endDate:   DateTime(2026, 4, 17),
     milestones: [
-      _Milestone(
-        title: "Day 36 — Analytics Instrumentation",
-        date: DateTime(2026, 4, 13),
-        description: "Instrument key events: booking_created, wellness_log_created, user_signup, trainer_profile_viewed.",
-      ),
-      _Milestone(
-        title: "Day 37 — Crashlytics & Performance",
-        date: DateTime(2026, 4, 14),
-        description: "Configure Crashlytics and FirebasePerformance. Set up custom trace for createBooking.",
-      ),
-      _Milestone(
-        title: "Day 38 — Firestore Rules Test Suite",
-        date: DateTime(2026, 4, 15),
-        description: "Write @firebase/rules-unit-testing tests. All tests pass in emulator.",
-      ),
-      _Milestone(
-        title: "Day 39 — Security Audit",
-        date: DateTime(2026, 4, 16),
-        description: "Audit Cloud Functions, CORS config, Hosting security headers. Attempt known attack vectors.",
-      ),
-      _Milestone(
-        title: "Day 40 — Security Sign-Off",
-        date: DateTime(2026, 4, 17),
-        description: "Fix all audit findings. Re-run rules test suite. Zero critical issues. Retrospective + commit.",
-      ),
-    ],
-  ),
-
-  // ── WEEK 9 ──
-  _Phase(
-    title: "Week 9: UAT & Bug Fixing",
-    description:
-        "UAT with 5 participants, feedback collection, bug triage, critical/high severity fixes, regression testing.",
-    startDate: DateTime(2026, 4, 20),
-    endDate: DateTime(2026, 4, 24),
-    milestones: [
-      _Milestone(
-        title: "Day 41 — UAT Preparation",
-        date: DateTime(2026, 4, 20),
-        description:
-            "Prepare UAT environment, seed data, create 5 participant accounts. Write test scenarios.",
-      ),
-      _Milestone(
-        title: "Day 42 — UAT Session: Users",
-        date: DateTime(2026, 4, 21),
-        description:
-            "Facilitate UAT with 3 regular users. Scenarios 1 & 2 (Discovery & Booking, Wellness Logging).",
-      ),
-      _Milestone(
-        title: "Day 43 — UAT Session: Trainers",
-        date: DateTime(2026, 4, 22),
-        description: "Facilitate UAT with 2 trainers. Scenario 3 (Availability, bookings, confirm/cancel).",
-      ),
-      _Milestone(
-        title: "Day 44 — Bug Triage & Fixes",
-        date: DateTime(2026, 4, 23),
-        description: "Categorize findings by severity. Fix all critical and high bugs. Regression test.",
-      ),
-      _Milestone(
-        title: "Day 45 — Final Regression",
-        date: DateTime(2026, 4, 24),
-        description: "Full regression test after fixes. Prepare production deployment checklist. Retrospective + commit.",
-      ),
-    ],
-  ),
-
-  // ── WEEK 10 ──
-  _Phase(
-    title: "Week 10: Production Launch",
-    description:
-        "Production Firebase config, Cloud Functions deployed, Flutter web release build, Firebase Hosting live, v1.0.0 tagged.",
-    startDate: DateTime(2026, 4, 27),
-    endDate: DateTime(2026, 5, 1),
-    milestones: [
-      _Milestone(
-        title: "Day 46 — Production Firebase Config",
-        date: DateTime(2026, 4, 27),
-        description:
-            "Switch firebase use wellpath-prod. Deploy Firestore rules and all Cloud Functions. Verify healthy.",
-      ),
-      _Milestone(
-        title: "Day 47 — Flutter Web Release Build",
-        date: DateTime(2026, 4, 28),
-        description:
-            "flutter build web --release. firebase deploy --only hosting. Smoke-test live URL.",
-      ),
-      _Milestone(
-        title: "Day 48 — Smoke Test & Billing Setup",
-        date: DateTime(2026, 4, 29),
-        description: "Full production smoke test. Set billing alerts. Enable daily Firestore backup.",
-      ),
-      _Milestone(
-        title: "Day 49 — Demo & Documentation",
-        date: DateTime(2026, 4, 30),
-        description: "Record 5-minute demo video. Update canvas changelog to v1.0.0. Write README.",
-      ),
-      _Milestone(
-        title: "Day 50 — v1.0.0 Launch & Monitor",
-        date: DateTime(2026, 5, 1),
-        description:
-            "Tag v1.0.0 on GitHub main. Announce to pilot users. Monitor Firebase Console for 24 hours.",
-      ),
+      _Milestone(title: 'Day 46 — Production Firebase Config', date: DateTime(2026, 4, 13), description: 'Switch firebase use wellpath-prod. Deploy Firestore rules and all Cloud Functions. Verify healthy.'),
+      _Milestone(title: 'Day 47 — Flutter Web Release Build',  date: DateTime(2026, 4, 14), description: 'flutter build web --release. firebase deploy --only hosting. Smoke-test live URL.'),
+      _Milestone(title: 'Day 48 — Smoke Test & Billing Setup', date: DateTime(2026, 4, 15), description: 'Full production smoke test. Set billing alerts. Enable daily Firestore backup.'),
+      _Milestone(title: 'Day 49 — Demo & Documentation',       date: DateTime(2026, 4, 16), description: 'Record 5-minute demo video. Update canvas changelog to v1.0.0. Write README.'),
+      _Milestone(title: 'Day 50 — v1.0.0 Launch & Monitor',   date: DateTime(2026, 4, 17), description: 'Tag v1.0.0 on GitHub main. Announce to pilot users. Monitor Firebase Console for 24 hours.'),
     ],
   ),
 ];
@@ -511,35 +360,14 @@ final List<_Phase> _phases = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 String _formatWeekdayDate(DateTime d) {
-  const weekdays = [
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday"
-  ];
-  const months = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December"
-  ];
-  return "${weekdays[d.weekday - 1]} ${d.day} ${months[d.month - 1]}, ${d.year}";
+  const weekdays = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const months   = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return '${weekdays[d.weekday - 1]} ${d.day} ${months[d.month - 1]}, ${d.year}';
 }
 
 String _formatShortDate(DateTime d) {
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return "${months[d.month - 1]} ${d.day}";
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return '${months[d.month - 1]} ${d.day}';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -560,197 +388,223 @@ class _LandingPageState extends State<LandingPage> {
   final ScrollController _scrollController = ScrollController();
   int _activeCardIndex = 0;
 
-  static const double _cardWidth = 200.0;
-  static const double _cardSpacing = 16.0;
-  static const double _cardHeight = 185.0;
-
   @override
   void initState() {
     super.initState();
-
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() => _now = DateTime.now());
     });
-
     _scrollController.addListener(_onScroll);
   }
 
   void _onScroll() {
     final offset = _scrollController.offset;
-    final index = (offset / (_cardWidth + _cardSpacing)).round().clamp(0, _phases.length - 1);
-    if (index != _activeCardIndex) {
-      setState(() => _activeCardIndex = index);
-    }
+    final index  = (offset / (kCardWidth + kCardSpacing)).round().clamp(0, _phases.length - 1);
+    if (index != _activeCardIndex) setState(() => _activeCardIndex = index);
   }
 
   @override
   void dispose() {
     _timer.cancel();
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
     super.dispose();
   }
 
   Duration _remaining(DateTime target) => target.difference(_now);
 
   void _scrollToCard(int index) {
-    _scrollController.animateTo(index * (_cardWidth + _cardSpacing), duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+    _scrollController.animateTo(
+      index * (kCardWidth + kCardSpacing),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   double get _overallProgress {
-    final total = _projectLaunch.difference(_projectStart).inSeconds;
+    final total   = _projectLaunch.difference(_projectStart).inSeconds;
     final elapsed = _now.difference(_projectStart).inSeconds.clamp(0, total);
     return elapsed / total;
   }
 
   @override
   Widget build(BuildContext context) {
-    // feedback controller localized inside build so it resets with the widget tree when the sheet opens
+    // Feedback controller lives inside build — resets cleanly each time the sheet opens.
     final TextEditingController feedbackController = TextEditingController();
 
     return Scaffold(
-      // ── WellPathBackground replaces the old inline gradient + particle stack ──
       body: WellPathBackground(
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1100),
+              constraints: const BoxConstraints(maxWidth: kPageMaxWidth),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 32),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: kPagePaddingH,
+                  vertical:   kPagePaddingV,
+                ),
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Top navigation row: logo (left), centered menu, begin journey (right)
+
+                      // ── Top nav: logo | menu | CTA ────────────────────────
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          // Logo — enlarged 1.5x
+                          // Typographic logo
                           RichText(
-                            textAlign: TextAlign.left,
-                            text: TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: "Well",
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.white,
-                                    fontSize: 48, // enlarged (32 * 1.5)
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 3,
-                                  ),
+                            text: TextSpan(children: [
+                              TextSpan(
+                                text: kLogoPartBold,
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: kLogoFontSize,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 3,
                                 ),
-                                TextSpan(
-                                  text: "Path",
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.white,
-                                    fontSize: 48,
-                                    fontWeight: FontWeight.w300,
-                                    letterSpacing: 3,
-                                  ),
+                              ),
+                              TextSpan(
+                                text: kLogoPartLight,
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: kLogoFontSize,
+                                  fontWeight: FontWeight.w300,
+                                  letterSpacing: 3,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ]),
                           ),
 
-                          // Center menu — keep minimal spacing and center it using Expanded
+                          // Center nav items — built from kNavItems config list
                           Expanded(
                             child: Center(
                               child: Wrap(
                                 alignment: WrapAlignment.center,
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 spacing: 28,
-                                children: [
-                                  _NavMenuItem(title: "About", onTap: () => context.push('/about')),
-                                  _NavMenuItem(title: "Features", onTap: () => context.push('/features')),
-                                  _NavMenuItem(title: "Pricing", onTap: () => context.push('/pricing')),
-                                ],
+                                children: kNavItems
+                                    .map((item) => _NavMenuItem(
+                                          title: item.$1,
+                                          onTap: () => context.push(item.$2),
+                                        ))
+                                    .toList(),
                               ),
                             ),
                           ),
 
-                          // Begin Journey button aligned to right, respecting page margins
-                          _BeginJourneyButton(projectStart: _projectStart, now: _now),
+                          // Begin / Continue Journey CTA
+                          _BeginJourneyButton(
+                            projectStart: _projectStart,
+                            now: _now,
+                          ),
                         ],
                       ),
 
                       const SizedBox(height: 18),
 
-                      const Text(
-                        "A WEB-BASED INTEGRATED FITNESS AND WELLNESS PLATFORM:\nA CASE STUDY OF WELLPATH",
+                      // ── Animated GIF header ───────────────────────────────
+                      // Make sure this asset is declared in pubspec.yaml under:
+                      //   flutter:
+                      //     assets:
+                      //       - assets/20260213_asset_animated_text_github_header_sconl_v1.1.0.gif
+                      Image.asset(
+                        kHeaderGifPath,
+                        width:  kHeaderGifWidth,
+                        height: kHeaderGifHeight,
+                        fit: BoxFit.contain,
+                        // Graceful fallback — won't crash if asset isn't added yet.
+                        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // ── Subtitle — lowercase, kSubtitleFontSize ───────────
+                      Text(
+                        kSubtitleText,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white70,
-                          fontSize: 13,
+                          fontSize: kSubtitleFontSize,
                           height: 1.4,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
+
                       const SizedBox(height: 16),
+
+                      // ── Author badge ──────────────────────────────────────
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.white30, width: 1),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Text(
-                          "GRACE MIRIRI  |  BSIT/445J/2020",
-                          style: TextStyle(
+                        child: Text(
+                          '$kAuthorName  |  $kAuthorId',
+                          style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 13,
+                            fontSize: kAuthorFontSize,
                             fontWeight: FontWeight.w600,
-                            letterSpacing: 1,
+                            letterSpacing: kAuthorLetterSpacing,
                           ),
                         ),
                       ),
+
                       const SizedBox(height: 24),
-                      const Text(
-                        "Countdown to Launch:",
-                        style: TextStyle(color: Colors.white70),
-                      ),
+
+                      // ── Launch countdown ──────────────────────────────────
+                      Text(kCountdownLabel, style: const TextStyle(color: Colors.white70)),
                       const SizedBox(height: 6),
                       _LaunchCountdown(duration: _remaining(_projectLaunch)),
+
                       const SizedBox(height: 32),
-                      const Text(
-                        "Roadmap",
-                        style: TextStyle(
+
+                      // ── Roadmap section ───────────────────────────────────
+                      Text(
+                        kRoadmapLabel,
+                        style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 22,
+                          fontSize: kRoadmapTitleSize,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 14),
                       _OverallProgressBar(progress: _overallProgress),
                       const SizedBox(height: 16),
+
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: SizedBox(
-                          height: _cardHeight,
+                          height: kCardHeight,
                           child: ListView.separated(
                             controller: _scrollController,
                             scrollDirection: Axis.horizontal,
                             clipBehavior: Clip.none,
                             itemCount: _phases.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: _cardSpacing),
+                            separatorBuilder: (_, __) => const SizedBox(width: kCardSpacing),
                             itemBuilder: (context, index) {
                               final phase = _phases[index];
                               return _PhaseCard(
-                                phase: phase,
+                                phase:     phase,
                                 remaining: _remaining(phase.endDate),
-                                now: _now,
-                                cardWidth: _cardWidth,
-                                cardHeight: _cardHeight,
+                                now:       _now,
                               );
                             },
                           ),
                         ),
                       ),
+
                       const SizedBox(height: 10),
+
                       _ScrollDotIndicator(
-                        count: _phases.length,
+                        count:       _phases.length,
                         activeIndex: _activeCardIndex,
-                        onTap: _scrollToCard,
-                        now: _now,
+                        onTap:       _scrollToCard,
+                        now:         _now,
                       ),
+
                       const SizedBox(height: 16),
                     ],
                   ),
@@ -761,10 +615,9 @@ class _LandingPageState extends State<LandingPage> {
         ),
       ),
 
-      // Floating Action Button for feedback/chat with developer
+      // ── Developer feedback FAB ────────────────────────────────────────────
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          // Open modal bottom sheet with a simple feedback/chat form
           showModalBottomSheet(
             context: context,
             isScrollControlled: true,
@@ -775,9 +628,7 @@ class _LandingPageState extends State<LandingPage> {
             builder: (ctx) {
               return Padding(
                 padding: EdgeInsets.only(
-                  left: 20,
-                  right: 20,
-                  top: 20,
+                  left: 20, right: 20, top: 20,
                   bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
                 ),
                 child: Column(
@@ -787,20 +638,20 @@ class _LandingPageState extends State<LandingPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text("Feedback & Chat", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                        IconButton(
-                          onPressed: () => Navigator.of(ctx).pop(),
-                          icon: const Icon(Icons.close),
-                        )
+                        const Text('Feedback & Chat', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                        IconButton(onPressed: () => Navigator.of(ctx).pop(), icon: const Icon(Icons.close)),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const Text("Send a quick message to the developer — bugs, ideas, or quick chat."),
+                    const Text('Send a quick message to the developer — bugs, ideas, or quick chat.'),
                     const SizedBox(height: 12),
                     TextField(
                       controller: feedbackController,
                       maxLines: 4,
-                      decoration: const InputDecoration(border: OutlineInputBorder(), hintText: "Type your message here..."),
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        hintText: 'Type your message here...',
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -808,24 +659,28 @@ class _LandingPageState extends State<LandingPage> {
                       children: [
                         TextButton(
                           onPressed: () => Navigator.of(ctx).pop(),
-                          child: const Text("Cancel"),
+                          child: const Text('Cancel'),
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton(
                           onPressed: () {
                             final msg = feedbackController.text.trim();
                             Navigator.of(ctx).pop();
-                            if (msg.isNotEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Thanks — your message was sent.")));
-                              // TODO: wire to real feedback endpoint (email/Firestore/cloud function/etc.)
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter a message before sending.")));
-                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  msg.isNotEmpty
+                                      ? 'Thanks — your message was sent.'
+                                      : 'Please enter a message before sending.',
+                                ),
+                              ),
+                            );
+                            // TODO: wire to real feedback endpoint (Firestore / Cloud Function / email)
                           },
-                          child: const Text("Send"),
-                        )
+                          child: const Text('Send'),
+                        ),
                       ],
-                    )
+                    ),
                   ],
                 ),
               );
@@ -833,8 +688,8 @@ class _LandingPageState extends State<LandingPage> {
           );
         },
         icon: const Icon(Icons.chat_bubble_outline),
-        label: const Text("Feedback"),
-        tooltip: "Send feedback or chat with developer",
+        label: const Text('Feedback'),
+        tooltip: 'Send feedback or chat with developer',
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
@@ -842,7 +697,7 @@ class _LandingPageState extends State<LandingPage> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Supporting widgets — unchanged from original (kept here in full)
+// Widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _NavMenuItem extends StatelessWidget {
@@ -857,7 +712,14 @@ class _NavMenuItem extends StatelessWidget {
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: onTap,
-        child: Text(title, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600)),
+        child: Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: kNavFontSize,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
@@ -876,23 +738,27 @@ class _OverallProgressBar extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Overall Sprint Progress', style: TextStyle(color: Colors.white54, fontSize: 12, letterSpacing: 0.5)),
-            Text('${pct.toStringAsFixed(1)}%', style: const TextStyle(color: Color(0xFF00CC66), fontSize: 12, fontWeight: FontWeight.w700)),
+            const Text(kProgressLabel, style: TextStyle(color: Colors.white54, fontSize: 12, letterSpacing: 0.5)),
+            Text('${pct.toStringAsFixed(1)}%', style: const TextStyle(color: kBrandGreen, fontSize: 12, fontWeight: FontWeight.w700)),
           ],
         ),
         const SizedBox(height: 6),
         LayoutBuilder(
           builder: (context, constraints) => Stack(
             children: [
-              Container(height: 4, width: constraints.maxWidth, decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(2))),
+              Container(
+                height: 4,
+                width: constraints.maxWidth,
+                decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(2)),
+              ),
               AnimatedContainer(
                 duration: const Duration(milliseconds: 800),
                 height: 4,
                 width: constraints.maxWidth * progress.clamp(0.0, 1.0),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [Color(0xFF00CC66), Color(0xFF00FF99)]),
+                  gradient: const LinearGradient(colors: [kBrandGreen, kBrandGreenLight]),
                   borderRadius: BorderRadius.circular(2),
-                  boxShadow: const [BoxShadow(color: Color(0x5500CC66), blurRadius: 6, spreadRadius: 1)],
+                  boxShadow: const [BoxShadow(color: kBrandGreenGlow, blurRadius: 6, spreadRadius: 1)],
                 ),
               ),
             ],
@@ -909,21 +775,26 @@ class _ScrollDotIndicator extends StatelessWidget {
   final void Function(int) onTap;
   final DateTime now;
 
-  const _ScrollDotIndicator({required this.count, required this.activeIndex, required this.onTap, required this.now});
+  const _ScrollDotIndicator({
+    required this.count,
+    required this.activeIndex,
+    required this.onTap,
+    required this.now,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(count, (i) {
-        final color = _phases[i].statusColorAt(now);
+        final color    = _phases[i].statusColorAt(now);
         final isActive = i == activeIndex;
         return GestureDetector(
           onTap: () => onTap(i),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 250),
             margin: const EdgeInsets.symmetric(horizontal: 4),
-            width: isActive ? 22 : 8,
+            width:  isActive ? 22 : 8,
             height: 8,
             decoration: BoxDecoration(
               color: isActive ? color : color.withAlpha(70),
@@ -951,28 +822,46 @@ class _BeginJourneyButtonState extends State<_BeginJourneyButton> {
 
   @override
   Widget build(BuildContext context) {
-    final label = widget.now.isAfter(widget.projectStart) ? "Continue Journey →" : "Begin Journey →";
+    final label = widget.now.isAfter(widget.projectStart)
+        ? 'Continue Journey →'
+        : 'Begin Journey →';
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
+      onExit:  (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        onTap: () {
-          // Navigate via GoRouter. Ensure /login is registered in your GoRouter config.
-          context.push('/login');
-        },
+        onTap: () => context.push('/login'),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 14),
+          padding: const EdgeInsets.symmetric(
+            horizontal: kBeginBtnPaddingH,
+            vertical:   kBeginBtnPaddingV,
+          ),
           decoration: BoxDecoration(
-            gradient: LinearGradient(colors: _hovered ? [const Color(0xFF00FF99), const Color(0xFF00CC66)] : [const Color(0xFF00CC66), const Color(0xFF009944)]),
-            borderRadius: BorderRadius.circular(50),
+            gradient: LinearGradient(
+              colors: _hovered
+                  ? [kBrandGreenLight, kBrandGreen]
+                  : [kBrandGreen, kBrandGreenDark],
+            ),
+            borderRadius: BorderRadius.circular(kBeginBtnRadius),
             boxShadow: [
-              BoxShadow(color: const Color(0xFF00CC66).withAlpha(_hovered ? 100 : 50), blurRadius: _hovered ? 24 : 12, spreadRadius: _hovered ? 2 : 0),
+              BoxShadow(
+                color: kBrandGreen.withAlpha(_hovered ? 100 : 50),
+                blurRadius: _hovered ? 24 : 12,
+                spreadRadius: _hovered ? 2 : 0,
+              ),
             ],
           ),
-          child: Text(label, style: TextStyle(color: _hovered ? const Color(0xFF001A0A) : Colors.white, fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: _hovered ? kBtnTextDark : Colors.white,
+              fontSize: kBeginBtnFontSize,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
+          ),
         ),
       ),
     );
@@ -983,10 +872,8 @@ class _PhaseCard extends StatefulWidget {
   final _Phase phase;
   final Duration remaining;
   final DateTime now;
-  final double cardWidth;
-  final double cardHeight;
 
-  const _PhaseCard({required this.phase, required this.remaining, required this.now, required this.cardWidth, required this.cardHeight});
+  const _PhaseCard({required this.phase, required this.remaining, required this.now});
 
   @override
   State<_PhaseCard> createState() => _PhaseCardState();
@@ -996,53 +883,90 @@ class _PhaseCardState extends State<_PhaseCard> {
   bool _hovered = false;
 
   void _openModal(BuildContext context) {
-    showDialog(context: context, barrierColor: Colors.black87, builder: (context) => _PhaseModal(phase: widget.phase, now: widget.now));
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (context) => _PhaseModal(phase: widget.phase, now: widget.now),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final phase = widget.phase;
-    final status = phase.statusAt(widget.now);
+    final phase       = widget.phase;
+    final status      = phase.statusAt(widget.now);
     final statusColor = phase.statusColorAt(widget.now);
     final isCompleted = status == _PhaseStatus.completed;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
+      onExit:  (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: () => _openModal(context),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
-          width: widget.cardWidth,
-          height: widget.cardHeight,
+          width:   kCardWidth,
+          height:  kCardHeight,
           padding: const EdgeInsets.all(14),
           transform: Matrix4.translationValues(0.0, _hovered ? -5.0 : 0.0, 0.0),
           decoration: BoxDecoration(
-            color: _hovered ? const Color.fromARGB(220, 2, 28, 14) : const Color.fromARGB(190, 1, 20, 10),
+            color: _hovered ? kCardBgHover : kCardBgDefault,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _hovered ? statusColor : Colors.white24, width: _hovered ? 1.5 : 1.0),
-            boxShadow: _hovered ? [BoxShadow(color: statusColor.withAlpha(55), blurRadius: 16, spreadRadius: 1)] : [],
+            border: Border.all(
+              color: _hovered ? statusColor : Colors.white24,
+              width: _hovered ? 1.5 : 1.0,
+            ),
+            boxShadow: _hovered
+                ? [BoxShadow(color: statusColor.withAlpha(55), blurRadius: 16, spreadRadius: 1)]
+                : [],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(phase.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+              Text(
+                phase.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
               const SizedBox(height: 4),
-              Text(_formatWeekdayDate(phase.endDate), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white60, fontSize: 11)),
+              Text(
+                _formatWeekdayDate(phase.endDate),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white60, fontSize: 11),
+              ),
               const SizedBox(height: 6),
               Row(children: [
                 Text(phase.statusEmojiAt(widget.now), style: const TextStyle(fontSize: 12)),
                 const SizedBox(width: 4),
-                Flexible(child: Text(phase.statusLabelAt(widget.now), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: statusColor, fontSize: 11))),
+                Flexible(
+                  child: Text(
+                    phase.statusLabelAt(widget.now),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: statusColor, fontSize: 11),
+                  ),
+                ),
               ]),
               const Spacer(),
               if (!isCompleted)
-                Text('${widget.remaining.inDays}d ${widget.remaining.inHours % 24}h ${widget.remaining.inMinutes % 60}m ${widget.remaining.inSeconds % 60}s', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white60, fontSize: 11)),
+                Text(
+                  '${widget.remaining.inDays}d '
+                  '${widget.remaining.inHours % 24}h '
+                  '${widget.remaining.inMinutes % 60}m '
+                  '${widget.remaining.inSeconds % 60}s',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white60, fontSize: 11),
+                ),
               if (_hovered) ...[
                 const SizedBox(height: 4),
-                Text('Tap for details →', style: TextStyle(color: statusColor.withAlpha(190), fontSize: 10, fontStyle: FontStyle.italic)),
+                Text(
+                  'Tap for details →',
+                  style: TextStyle(color: statusColor.withAlpha(190), fontSize: 10, fontStyle: FontStyle.italic),
+                ),
               ],
             ],
           ),
@@ -1061,50 +985,85 @@ class _PhaseModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = phase.statusColorAt(now);
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 640),
         child: Container(
-          decoration: BoxDecoration(color: const Color(0xFF020E08), borderRadius: BorderRadius.circular(20), border: Border.all(color: statusColor.withAlpha(100), width: 1), boxShadow: [BoxShadow(color: statusColor.withAlpha(40), blurRadius: 40, spreadRadius: 4)]),
+          decoration: BoxDecoration(
+            color: kModalBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: statusColor.withAlpha(100), width: 1),
+            boxShadow: [BoxShadow(color: statusColor.withAlpha(40), blurRadius: 40, spreadRadius: 4)],
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Modal header
               Container(
                 padding: const EdgeInsets.fromLTRB(28, 24, 20, 20),
                 decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white12))),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(phase.title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
-                      const SizedBox(height: 8),
-                      Wrap(spacing: 8, runSpacing: 6, children: [
-                        Row(mainAxisSize: MainAxisSize.min, children: [
-                          Text(phase.statusEmojiAt(now), style: const TextStyle(fontSize: 14)),
-                          const SizedBox(width: 6),
-                          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3), decoration: BoxDecoration(color: statusColor.withAlpha(30), borderRadius: BorderRadius.circular(20), border: Border.all(color: statusColor.withAlpha(80))), child: Text(phase.statusLabelAt(now), style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.w600))),
-                        ]),
-                        Text('Due: ${_formatWeekdayDate(phase.endDate)}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                      ]),
-                      const SizedBox(height: 10),
-                      Text(phase.description, style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5)),
-                    ])),
-                    IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close, color: Colors.white54, size: 20)),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(phase.title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                          const SizedBox(height: 8),
+                          Wrap(spacing: 8, runSpacing: 6, children: [
+                            Row(mainAxisSize: MainAxisSize.min, children: [
+                              Text(phase.statusEmojiAt(now), style: const TextStyle(fontSize: 14)),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withAlpha(30),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: statusColor.withAlpha(80)),
+                                ),
+                                child: Text(phase.statusLabelAt(now), style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.w600)),
+                              ),
+                            ]),
+                            Text('Due: ${_formatWeekdayDate(phase.endDate)}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                          ]),
+                          const SizedBox(height: 10),
+                          Text(phase.description, style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5)),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close, color: Colors.white54, size: 20),
+                    ),
                   ],
                 ),
               ),
-              Flexible(child: SingleChildScrollView(padding: const EdgeInsets.fromLTRB(28, 20, 28, 28), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('SPRINT BREAKDOWN', style: TextStyle(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.4)),
-                const SizedBox(height: 14),
-                ...List.generate(phase.milestones.length, (i) {
-                  final m = phase.milestones[i];
-                  final isLast = i == phase.milestones.length - 1;
-                  return _MilestoneRow(milestone: m, isLast: isLast, phaseStatus: phase.statusAt(now), now: now);
-                }),
-              ])) ),
+              // Milestone list
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(28, 20, 28, 28),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('SPRINT BREAKDOWN', style: TextStyle(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.4)),
+                      const SizedBox(height: 14),
+                      ...List.generate(phase.milestones.length, (i) {
+                        return _MilestoneRow(
+                          milestone:   phase.milestones[i],
+                          isLast:      i == phase.milestones.length - 1,
+                          phaseStatus: phase.statusAt(now),
+                          now:         now,
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -1123,16 +1082,62 @@ class _MilestoneRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final done = milestone.isCompletedAt(now);
-    final dotColor = done ? Colors.greenAccent : phaseStatus == _PhaseStatus.active ? Colors.orangeAccent : Colors.white24;
-    final milestoneEmoji = done ? "✅" : phaseStatus == _PhaseStatus.active ? "🔄" : "⏳";
+    final done           = milestone.isCompletedAt(now);
+    final dotColor       = done ? Colors.greenAccent : phaseStatus == _PhaseStatus.active ? Colors.orangeAccent : Colors.white24;
+    final milestoneEmoji = done ? '✅' : phaseStatus == _PhaseStatus.active ? '🔄' : '⏳';
 
-    return IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      SizedBox(width: 24, child: Column(children: [const SizedBox(height: 3), Container(width: 12, height: 12, decoration: BoxDecoration(color: dotColor.withAlpha(done ? 255 : 80), shape: BoxShape.circle, border: Border.all(color: dotColor, width: 1.5))), if (!isLast) Expanded(child: Container(width: 1.5, margin: const EdgeInsets.only(top: 4), color: Colors.white12))])),
-      const SizedBox(width: 12),
-      Expanded(child: Padding(padding: EdgeInsets.only(bottom: isLast ? 0 : 20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Text(milestoneEmoji, style: const TextStyle(fontSize: 12)), const SizedBox(width: 6), Expanded(child: Text(milestone.title, style: TextStyle(color: done ? Colors.greenAccent : Colors.white, fontWeight: FontWeight.w600, fontSize: 13))), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(10)), child: Text(_formatShortDate(milestone.date), style: const TextStyle(color: Colors.white54, fontSize: 11))) ]), const SizedBox(height: 5), Text(milestone.description, style: const TextStyle(color: Colors.white54, fontSize: 12, height: 1.55)) ])))
-    ]));
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Timeline track
+          SizedBox(
+            width: 24,
+            child: Column(children: [
+              const SizedBox(height: 3),
+              Container(
+                width: 12, height: 12,
+                decoration: BoxDecoration(
+                  color: dotColor.withAlpha(done ? 255 : 80),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: dotColor, width: 1.5),
+                ),
+              ),
+              if (!isLast)
+                Expanded(child: Container(width: 1.5, margin: const EdgeInsets.only(top: 4), color: Colors.white12)),
+            ]),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Text(milestoneEmoji, style: const TextStyle(fontSize: 12)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        milestone.title,
+                        style: TextStyle(color: done ? Colors.greenAccent : Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(10)),
+                      child: Text(_formatShortDate(milestone.date), style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                    ),
+                  ]),
+                  const SizedBox(height: 5),
+                  Text(milestone.description, style: const TextStyle(color: Colors.white54, fontSize: 12, height: 1.55)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1142,6 +1147,31 @@ class _LaunchCountdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text('${duration.inDays}d ${duration.inHours % 24}h ${duration.inMinutes % 60}m ${duration.inSeconds % 60}s', style: const TextStyle(color: Color(0xFF00CC66), fontSize: 20, fontWeight: FontWeight.w600));
+    return Text(
+      '${duration.inDays}d ${duration.inHours % 24}h ${duration.inMinutes % 60}m ${duration.inSeconds % 60}s',
+      style: const TextStyle(color: kBrandGreen, fontSize: kCountdownFontSize, fontWeight: FontWeight.w600),
+    );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REFACTOR NOTE — things to extract on a future pass
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Reusable widgets worth moving to core/widgets/ when the codebase grows:
+//
+//   • _NavMenuItem → could be a shared AppNavItem used across pages
+//   • _OverallProgressBar → generic ProgressBar(label, value, color) widget
+//   • _LaunchCountdown → generic CountdownDisplay(duration, style) widget
+//   • _ScrollDotIndicator → generic PaginationDots(count, activeIndex, colors)
+//   • The modal container (dark glass box + glow border) → GlassDialog widget
+//   • The status badge chip (colored border + label) → StatusBadge(label, color)
+//   • _MilestoneRow timeline track → TimelineItem widget
+//
+// State that could move to a provider (when the app grows):
+//
+//   • _now (ticker) → a shared ClockProvider so multiple widgets share one timer
+//   • _phases list → a ProjectScheduleProvider that reads from config or Firestore
+//   • _overallProgress → derived from ClockProvider + schedule, not local state
+//
+// ─────────────────────────────────────────────────────────────────────────────
