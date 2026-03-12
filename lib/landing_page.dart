@@ -55,7 +55,7 @@ const String kProgressLabel  = 'Overall Sprint Progress';
 
 // ── Assets ────────────────────────────────────────────────────────────────────
 const String kHeaderGifPath =
-    'assets/20260312_asset_animated_text_wellpath_landing_page_header_1.0.0.gif';
+    'assets/animated-gifs/20260312_asset_animated_text_wellpath_landing_page_header_1.0.0.gif';
 
 // ── Navigation items ──────────────────────────────────────────────────────────
 const List<(String label, String route)> kNavItems = [
@@ -77,7 +77,7 @@ const double kCardHeight  = 185.0;
 // The font family and weights come from AppTypography. These are size overrides
 // that are specific to the landing page's large-format layout.
 const double kLogoFontSize      = 48.0;
-const double kSubtitleFontSize  = 11.5;
+const double kSubtitleFontSize  = 16.0;
 const double kCountdownFontSize = 20.0;
 const double kRoadmapTitleSize  = 22.0;
 const double kNavFontSize       = 14.0;
@@ -86,8 +86,8 @@ const double kAuthorFontSize    = 13.0;
 const double kAuthorLetterSpacing = 1.0;
 
 // ── Header GIF ────────────────────────────────────────────────────────────────
-const double kHeaderGifWidth  = 340.0;
-const double kHeaderGifHeight = 80.0;
+const double kHeaderGifWidth  = 1200.0;
+const double kHeaderGifHeight = 120.0;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data models
