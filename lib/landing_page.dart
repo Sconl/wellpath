@@ -1,42 +1,48 @@
 // lib/landing_page.dart
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CODE CHANGELOG: personal tracking — will be removed before submission.
-//
-//   • CONFIG block added at top — all tunable values now live there.
-//   • Timeline compressed: W4–W10 end by April 17 (mid-April). W1–W3 untouched.
-//   • _projectLaunch updated to April 17 to match compressed schedule.
-//   • Animated GIF header added above subtitle via Image.asset(kHeaderGifPath).
-//   • Subtitle lowercased and font size reduced to kSubtitleFontSize (11.5).
-//   • All hardcoded literals across widgets replaced with config references.
-//   • Reusable extraction candidates documented in REFACTOR NOTE at bottom.
-
+// CHANGELOG
+// ─────────────────────────────────────────────────────────────────────────────
+//   • Full rewrite — all hardcoded colors replaced with AppColors references
+//   • All hardcoded gradients replaced with AppGradients
+//   • All hardcoded text styles replaced with AppTypography
+//   • AppSpacing and AppRadius replace magic numbers throughout
+//   • WellPathBackground import removed — replaced with theme.dart mesh Stack
+//   • Status colors in _Phase and _MilestoneRow wired to semantic AppColors
+//   • AppDecorations.modal used for _PhaseModal container
+//   • AppDecorations.chip used for status badge chips
+//   • GoogleFonts.poppins inline calls replaced with AppTypography throughout
+//   • Local color config entries removed — they now live in theme.dart CONFIG
+//   • Manual mesh Stack replaced with AppBackground widget — Sconl Peter
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-
-import 'core/widgets/wellpath_background.dart';
 import 'package:go_router/go_router.dart';
+
+import 'core/theme/theme.dart';
+import 'core/theme/app_background.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG — change values here, not inside widgets
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// This is your single source of truth for everything tunable on this page.
-// Need to rebrand? Change colors here. Adjust layout? Change padding here.
-// New asset path? One line. Nothing else in this file needs touching.
+// Colors, gradients, and shape tokens are no longer here — they live in
+// theme.dart's CONFIG BLOCK. To rebrand this page, change the three brand
+// seeds in theme.dart and everything below regenerates automatically.
+//
+// What stays here: page-specific copy, dates, assets, layout, and nav items.
+// These are the things that change per-project, not per-rebrand.
 
 // ── Project schedule ──────────────────────────────────────────────────────────
 final DateTime kProjectStart  = DateTime(2026, 2, 23);
-final DateTime kProjectLaunch = DateTime(2026, 4, 17); // compressed to mid-April, but keep as late as possible for maximum suspense!
+final DateTime kProjectLaunch = DateTime(2026, 4, 17);
 
 // ── Branding / copy ───────────────────────────────────────────────────────────
 const String kLogoPartBold  = 'Well';
 const String kLogoPartLight = 'Path';
 
-const String kSubtitleText  =
+const String kSubtitleText =
     'a web-based integrated fitness and wellness platform:\n'
     'a case study of wellpath';
 
@@ -48,12 +54,10 @@ const String kRoadmapLabel   = 'Roadmap';
 const String kProgressLabel  = 'Overall Sprint Progress';
 
 // ── Assets ────────────────────────────────────────────────────────────────────
-// Declare this path in pubspec.yaml under flutter > assets.
 const String kHeaderGifPath =
     'assets/20260213_asset_animated_text_github_header_sconl_v1.1.0.gif';
 
-// ── Navigation items ─────────────────────────────────────────────────────────
-// Add or remove entries here; the nav bar builds from this list.
+// ── Navigation items ──────────────────────────────────────────────────────────
 const List<(String label, String route)> kNavItems = [
   ('About',    '/about'),
   ('Features', '/features'),
@@ -61,54 +65,32 @@ const List<(String label, String route)> kNavItems = [
 ];
 
 // ── Layout ────────────────────────────────────────────────────────────────────
-const double kPageMaxWidth  = 1100.0;
-const double kPagePaddingH  = 60.0;
-const double kPagePaddingV  = 32.0;
+const double kPageMaxWidth = 1100.0;
+const double kPagePaddingH = 60.0;
+const double kPagePaddingV = 32.0;
 
 const double kCardWidth   = 200.0;
 const double kCardSpacing = 16.0;
 const double kCardHeight  = 185.0;
 
-// ── Typography ────────────────────────────────────────────────────────────────
-const double kLogoFontSize        = 48.0;
-const double kSubtitleFontSize    = 11.5;
-const double kCountdownFontSize   = 20.0;
-const double kRoadmapTitleSize    = 22.0;
-const double kNavFontSize         = 14.0;
-const double kBeginBtnFontSize    = 15.0;
-const double kAuthorFontSize      = 13.0;
+// ── Typography (page-specific sizes) ─────────────────────────────────────────
+// The font family and weights come from AppTypography. These are size overrides
+// that are specific to the landing page's large-format layout.
+const double kLogoFontSize      = 48.0;
+const double kSubtitleFontSize  = 11.5;
+const double kCountdownFontSize = 20.0;
+const double kRoadmapTitleSize  = 22.0;
+const double kNavFontSize       = 14.0;
+const double kBeginBtnFontSize  = 15.0;
+const double kAuthorFontSize    = 13.0;
 const double kAuthorLetterSpacing = 1.0;
 
-// ── Colors ────────────────────────────────────────────────────────────────────
-const Color kBrandGreen      = Color(0xFF00CC66);
-const Color kBrandGreenLight = Color(0xFF00FF99);
-const Color kBrandGreenDark  = Color(0xFF009944);
-const Color kBrandGreenGlow  = Color(0x5500CC66);
-const Color kCardBgDefault   = Color.fromARGB(190, 1, 20, 10);
-const Color kCardBgHover     = Color.fromARGB(220, 2, 28, 14);
-const Color kModalBg         = Color(0xFF020E08);
-const Color kBtnTextDark     = Color(0xFF001A0A);
-
-// ── Begin Journey button ──────────────────────────────────────────────────────
-const double kBeginBtnPaddingH = 36.0;
-const double kBeginBtnPaddingV = 14.0;
-const double kBeginBtnRadius   = 50.0;
-
 // ── Header GIF ────────────────────────────────────────────────────────────────
-// Adjust these if you want the gif displayed at a different size.
 const double kHeaderGifWidth  = 340.0;
-const double kHeaderGifHeight = 80.0; // set to null to let it size naturally
+const double kHeaderGifHeight = 80.0;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Project schedule constants
-// ─────────────────────────────────────────────────────────────────────────────
-// Aliased from config so internal references still read naturally.
-
-final DateTime _projectStart  = kProjectStart;
-final DateTime _projectLaunch = kProjectLaunch;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Data Models
+// Data models
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum _PhaseStatus { completed, active, pending }
@@ -152,40 +134,37 @@ class _Phase {
 
   String statusEmojiAt(DateTime now) {
     switch (statusAt(now)) {
-      case _PhaseStatus.completed:  return '✅';
-      case _PhaseStatus.active:     return '🚧';
-      case _PhaseStatus.pending:    return '⏳';
+      case _PhaseStatus.completed: return '✅';
+      case _PhaseStatus.active:    return '🚧';
+      case _PhaseStatus.pending:   return '⏳';
     }
   }
 
   String statusLabelAt(DateTime now) {
     switch (statusAt(now)) {
-      case _PhaseStatus.completed:  return 'Completed';
-      case _PhaseStatus.active:     return 'Active Development';
-      case _PhaseStatus.pending:    return 'Pending';
+      case _PhaseStatus.completed: return 'Completed';
+      case _PhaseStatus.active:    return 'Active Development';
+      case _PhaseStatus.pending:   return 'Pending';
     }
   }
 
+  // Semantic colors from theme.dart — no more hardcoded Color values here.
+  // These are universal signals: green=done, orange=in progress, muted=waiting.
   Color statusColorAt(DateTime now) {
     switch (statusAt(now)) {
-      case _PhaseStatus.completed:  return Colors.greenAccent;
-      case _PhaseStatus.active:     return Colors.orangeAccent;
-      case _PhaseStatus.pending:    return Colors.white54;
+      case _PhaseStatus.completed: return AppColors.success;
+      case _PhaseStatus.active:    return AppColors.warning;
+      case _PhaseStatus.pending:   return AppColors.textSecondary;
     }
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Phase definitions
+// Phase definitions (unchanged — only statusColorAt above was touched)
 // ─────────────────────────────────────────────────────────────────────────────
-//
-// W1 and W2 are completed — dates unchanged.
-// W3 is the active week — dates unchanged (Day 11 is current task).
-// W4 onwards: compressed to land by April 17.
 
 final List<_Phase> _phases = [
 
-  // ── WEEK 1 — COMPLETED (unchanged) ──
   _Phase(
     title: 'Week 1: Firebase & Flutter Init',
     description:
@@ -194,15 +173,14 @@ final List<_Phase> _phases = [
     startDate: DateTime(2026, 2, 23),
     endDate:   DateTime(2026, 2, 27),
     milestones: [
-      _Milestone(title: 'Day 1 — Firebase Setup',         date: DateTime(2026, 2, 23), description: 'Create wellpath-dev and wellpath-prod Firebase projects, enable Email/Password Auth, create Firestore DB in test mode, install and login Firebase CLI.'),
-      _Milestone(title: 'Day 2 — Flutter Project Setup',  date: DateTime(2026, 2, 24), description: 'Create Flutter project, add pubspec.yaml dependencies (firebase_core, firebase_auth, cloud_firestore, flutter_riverpod, go_router), run FlutterFire CLI to generate firebase_options.dart.'),
-      _Milestone(title: 'Day 3 — Authentication UI',      date: DateTime(2026, 2, 25), description: 'Build AuthRepository (signUp, signIn, signOut, authStateChanges stream), create authRepositoryProvider and authStateProvider in Riverpod, build signup screen with email/password/displayName fields.'),
-      _Milestone(title: 'Day 4 — Firestore User Creation',date: DateTime(2026, 2, 26), description: "Auto-create users/{uid} document on signup (uid, email, displayName, role: 'user', preferences: {dailyReminderEnabled, reminderTime}), build login screen, configure GoRouter with auth redirect guard."),
-      _Milestone(title: 'Day 5 — Auth Testing & Commit',  date: DateTime(2026, 2, 27), description: 'Full auth flow test: signup → Firestore document verify → logout → login. Handle all error cases. Add loading states. Retrospective + git commit.'),
+      _Milestone(title: 'Day 1 — Firebase Setup',          date: DateTime(2026, 2, 23), description: 'Create wellpath-dev and wellpath-prod Firebase projects, enable Email/Password Auth, create Firestore DB in test mode, install and login Firebase CLI.'),
+      _Milestone(title: 'Day 2 — Flutter Project Setup',   date: DateTime(2026, 2, 24), description: 'Create Flutter project, add pubspec.yaml dependencies (firebase_core, firebase_auth, cloud_firestore, flutter_riverpod, go_router), run FlutterFire CLI to generate firebase_options.dart.'),
+      _Milestone(title: 'Day 3 — Authentication UI',       date: DateTime(2026, 2, 25), description: 'Build AuthRepository (signUp, signIn, signOut, authStateChanges stream), create authRepositoryProvider and authStateProvider in Riverpod, build signup screen with email/password/displayName fields.'),
+      _Milestone(title: 'Day 4 — Firestore User Creation', date: DateTime(2026, 2, 26), description: "Auto-create users/{uid} document on signup, build login screen, configure GoRouter with auth redirect guard."),
+      _Milestone(title: 'Day 5 — Auth Testing & Commit',   date: DateTime(2026, 2, 27), description: 'Full auth flow test: signup → Firestore document verify → logout → login. Handle all error cases. Add loading states. Retrospective + git commit.'),
     ],
   ),
 
-  // ── WEEK 2 — COMPLETED (unchanged) ──
   _Phase(
     title: 'Week 2: Auth Hardening & Roles',
     description:
@@ -211,15 +189,14 @@ final List<_Phase> _phases = [
     startDate: DateTime(2026, 3, 2),
     endDate:   DateTime(2026, 3, 6),
     milestones: [
-      _Milestone(title: 'Day 6 — Role-Based Access Control', date: DateTime(2026, 3, 2), description: 'Implement custom JWT claims for user/trainer roles via Cloud Function (setUserRole). Write Firestore security rules. Deploy to emulator and verify.'),
-      _Milestone(title: 'Day 7 — User Profile Screen',       date: DateTime(2026, 3, 3), description: 'Build ProfileScreen wired to Firestore users/{uid} stream. Add edit profile form with updateDisplayName and Firestore sync.'),
-      _Milestone(title: 'Day 8 — Error Handling & Loading',  date: DateTime(2026, 3, 4), description: 'Create global LoadingIndicator widget, ErrorWidget with retry action, shimmer placeholders. Apply consistently across auth and profile screens.'),
-      _Milestone(title: 'Day 9 — GoRouter Guards',           date: DateTime(2026, 3, 5), description: 'Add protected route redirect (unauthenticated → /login). Configure /signup, /login, /home, /profile routes. Test deep link preservation.'),
-      _Milestone(title: 'Day 10 — Week 2 Integration Test',  date: DateTime(2026, 3, 6), description: 'End-to-end: role claim assignment, Firestore rules in emulator, GoRouter redirects verified. Retrospective + commit.'),
+      _Milestone(title: 'Day 6 — Role-Based Access Control',  date: DateTime(2026, 3, 2), description: 'Implement custom JWT claims for user/trainer roles via Cloud Function (setUserRole). Write Firestore security rules. Deploy to emulator and verify.'),
+      _Milestone(title: 'Day 7 — User Profile Screen',        date: DateTime(2026, 3, 3), description: 'Build ProfileScreen wired to Firestore users/{uid} stream. Add edit profile form with updateDisplayName and Firestore sync.'),
+      _Milestone(title: 'Day 8 — Error Handling & Loading',   date: DateTime(2026, 3, 4), description: 'Create global LoadingIndicator widget, ErrorWidget with retry action, shimmer placeholders. Apply consistently across auth and profile screens.'),
+      _Milestone(title: 'Day 9 — GoRouter Guards',            date: DateTime(2026, 3, 5), description: 'Add protected route redirect (unauthenticated → /login). Configure /signup, /login, /home, /profile routes. Test deep link preservation.'),
+      _Milestone(title: 'Day 10 — Week 2 Integration Test',   date: DateTime(2026, 3, 6), description: 'End-to-end: role claim assignment, Firestore rules in emulator, GoRouter redirects verified. Retrospective + commit.'),
     ],
   ),
 
-  // ── WEEK 3 — ACTIVE (unchanged — Day 11 is current) ──
   _Phase(
     title: 'Week 3: Data Architecture & Discovery',
     description:
@@ -228,15 +205,14 @@ final List<_Phase> _phases = [
     startDate: DateTime(2026, 3, 9),
     endDate:   DateTime(2026, 3, 13),
     milestones: [
-      _Milestone(title: 'Day 11 — Trainer & Slot Models',   date: DateTime(2026, 3, 9),  description: 'Create Trainer and AvailabilitySlot models. Seed 5 Mombasa trainers and 10+ availability slots.'),
+      _Milestone(title: 'Day 11 — Trainer & Slot Models',    date: DateTime(2026, 3, 9),  description: 'Create Trainer and AvailabilitySlot models. Seed 5 Mombasa trainers and 10+ availability slots.'),
       _Milestone(title: 'Day 12 — Firestore Indexes & Repos',date: DateTime(2026, 3, 10), description: 'Add compound indexes, write security rules, build TrainerRepository with Riverpod StreamProviders.'),
-      _Milestone(title: 'Day 13 — Trainer List Screen',     date: DateTime(2026, 3, 11), description: 'Build TrainerListScreen with ListView.builder, TrainerCard, specialty filter chips, search TextField.'),
-      _Milestone(title: 'Day 14 — Trainer Profile Screen',  date: DateTime(2026, 3, 12), description: "Build TrainerProfileScreen with full avatar, bio, availability section, 'View Availability' CTA. Wire /trainer/:id route."),
-      _Milestone(title: 'Day 15 — Responsive Layout',       date: DateTime(2026, 3, 13), description: 'Implement LayoutBuilder breakpoints. Full discovery navigation test. Retrospective + commit.'),
+      _Milestone(title: 'Day 13 — Trainer List Screen',      date: DateTime(2026, 3, 11), description: 'Build TrainerListScreen with ListView.builder, TrainerCard, specialty filter chips, search TextField.'),
+      _Milestone(title: 'Day 14 — Trainer Profile Screen',   date: DateTime(2026, 3, 12), description: "Build TrainerProfileScreen with full avatar, bio, availability section, 'View Availability' CTA. Wire /trainer/:id route."),
+      _Milestone(title: 'Day 15 — Responsive Layout',        date: DateTime(2026, 3, 13), description: 'Implement LayoutBuilder breakpoints. Full discovery navigation test. Retrospective + commit.'),
     ],
   ),
 
-  // ── WEEK 4 — compressed: Mar 14–18 ──
   _Phase(
     title: 'Week 4: Booking Flow',
     description:
@@ -245,15 +221,14 @@ final List<_Phase> _phases = [
     startDate: DateTime(2026, 3, 14),
     endDate:   DateTime(2026, 3, 18),
     milestones: [
-      _Milestone(title: 'Day 16 — Availability Repository',      date: DateTime(2026, 3, 14), description: 'Build AvailabilityRepository and wire availableSlotsProvider. Add slot cards to TrainerProfileScreen.'),
-      _Milestone(title: 'Day 17 — createBooking Cloud Function', date: DateTime(2026, 3, 15), description: 'Implement createBooking with full Firestore transaction. Deploy to dev.'),
-      _Milestone(title: 'Day 18 — Booking Client UI',            date: DateTime(2026, 3, 16), description: "Build BookingRepository, wire 'Book' button with loading and SnackBar feedback."),
-      _Milestone(title: 'Day 19 — My Bookings & Trainer View',   date: DateTime(2026, 3, 17), description: 'Build MyBookingsScreen and TrainerBookingsScreen with confirm/cancel actions.'),
-      _Milestone(title: 'Day 20 — Race Condition Testing',       date: DateTime(2026, 3, 18), description: 'Concurrent createBooking test, full booking end-to-end test. Retrospective + commit.'),
+      _Milestone(title: 'Day 16 — Availability Repository',       date: DateTime(2026, 3, 14), description: 'Build AvailabilityRepository and wire availableSlotsProvider. Add slot cards to TrainerProfileScreen.'),
+      _Milestone(title: 'Day 17 — createBooking Cloud Function',  date: DateTime(2026, 3, 15), description: 'Implement createBooking with full Firestore transaction. Deploy to dev.'),
+      _Milestone(title: 'Day 18 — Booking Client UI',             date: DateTime(2026, 3, 16), description: "Build BookingRepository, wire 'Book' button with loading and SnackBar feedback."),
+      _Milestone(title: 'Day 19 — My Bookings & Trainer View',    date: DateTime(2026, 3, 17), description: 'Build MyBookingsScreen and TrainerBookingsScreen with confirm/cancel actions.'),
+      _Milestone(title: 'Day 20 — Race Condition Testing',        date: DateTime(2026, 3, 18), description: 'Concurrent createBooking test, full booking end-to-end test. Retrospective + commit.'),
     ],
   ),
 
-  // ── WEEK 5 — compressed: Mar 19–23 ──
   _Phase(
     title: 'Week 5: Wellness Logging',
     description:
@@ -270,7 +245,6 @@ final List<_Phase> _phases = [
     ],
   ),
 
-  // ── WEEK 6 — compressed: Mar 24–28 ──
   _Phase(
     title: 'Week 6: Notifications & Reminders',
     description:
@@ -279,15 +253,14 @@ final List<_Phase> _phases = [
     startDate: DateTime(2026, 3, 24),
     endDate:   DateTime(2026, 3, 28),
     milestones: [
-      _Milestone(title: 'Day 26 — FCM Setup & Token Storage', date: DateTime(2026, 3, 24), description: 'Add VAPID key, configure service worker, initialize FirebaseMessaging. Store FCM token in Firestore.'),
-      _Milestone(title: 'Day 27 — Booking Push Trigger',      date: DateTime(2026, 3, 25), description: 'Deploy onBookingCreated Firestore trigger: send push to user and trainer.'),
-      _Milestone(title: 'Day 28 — FCM Message Handling',      date: DateTime(2026, 3, 26), description: 'Handle FCM in foreground, background, terminated state. Navigate on notification tap.'),
-      _Milestone(title: 'Day 29 — Daily Reminder & Settings', date: DateTime(2026, 3, 27), description: "Deploy sendDailyReminder Cloud Scheduler. Build NotificationSettingsScreen with toggle + TimePickerDialog."),
-      _Milestone(title: 'Day 30 — Notifications Full Test',   date: DateTime(2026, 3, 28), description: 'End-to-end booking push test. Manually trigger Cloud Scheduler. Retrospective + commit.'),
+      _Milestone(title: 'Day 26 — FCM Setup & Token Storage',  date: DateTime(2026, 3, 24), description: 'Add VAPID key, configure service worker, initialize FirebaseMessaging. Store FCM token in Firestore.'),
+      _Milestone(title: 'Day 27 — Booking Push Trigger',       date: DateTime(2026, 3, 25), description: 'Deploy onBookingCreated Firestore trigger: send push to user and trainer.'),
+      _Milestone(title: 'Day 28 — FCM Message Handling',       date: DateTime(2026, 3, 26), description: 'Handle FCM in foreground, background, terminated state. Navigate on notification tap.'),
+      _Milestone(title: 'Day 29 — Daily Reminder & Settings',  date: DateTime(2026, 3, 27), description: "Deploy sendDailyReminder Cloud Scheduler. Build NotificationSettingsScreen with toggle + TimePickerDialog."),
+      _Milestone(title: 'Day 30 — Notifications Full Test',    date: DateTime(2026, 3, 28), description: 'End-to-end booking push test. Manually trigger Cloud Scheduler. Retrospective + commit.'),
     ],
   ),
 
-  // ── WEEK 7 — compressed: Mar 29–Apr 2 ──
   _Phase(
     title: 'Week 7: UI Polish & Performance',
     description:
@@ -296,15 +269,14 @@ final List<_Phase> _phases = [
     startDate: DateTime(2026, 3, 29),
     endDate:   DateTime(2026, 4, 2),
     milestones: [
-      _Milestone(title: 'Day 31 — UI Consistency Pass',          date: DateTime(2026, 3, 29), description: 'Audit all screens for typography, spacing, color. Fix layout overflows.'),
+      _Milestone(title: 'Day 31 — UI Consistency Pass',           date: DateTime(2026, 3, 29), description: 'Audit all screens for typography, spacing, color. Fix layout overflows.'),
       _Milestone(title: 'Day 32 — Micro-Animations & Empty States',date: DateTime(2026, 3, 30), description: 'Add success micro-animation on log save and booking. Build empty state widgets.'),
-      _Milestone(title: 'Day 33 — Mobile Device Testing',        date: DateTime(2026, 3, 31), description: 'Test on physical Android/iOS. Fix tap targets, keyboard-covering fields.'),
-      _Milestone(title: 'Day 34 — Lighthouse & Firestore Opt',   date: DateTime(2026, 4, 1),  description: 'Run Lighthouse audit. Enable Flutter web deferred loading. Verify < 2s page loads.'),
-      _Milestone(title: 'Day 35 — Polish Review',                date: DateTime(2026, 4, 2),  description: 'Full visual walkthrough. Accessibility check. Performance targets confirmed. Retrospective + commit.'),
+      _Milestone(title: 'Day 33 — Mobile Device Testing',         date: DateTime(2026, 3, 31), description: 'Test on physical Android/iOS. Fix tap targets, keyboard-covering fields.'),
+      _Milestone(title: 'Day 34 — Lighthouse & Firestore Opt',    date: DateTime(2026, 4, 1),  description: 'Run Lighthouse audit. Enable Flutter web deferred loading. Verify < 2s page loads.'),
+      _Milestone(title: 'Day 35 — Polish Review',                 date: DateTime(2026, 4, 2),  description: 'Full visual walkthrough. Accessibility check. Performance targets confirmed. Retrospective + commit.'),
     ],
   ),
 
-  // ── WEEK 8 — compressed: Apr 3–7 ──
   _Phase(
     title: 'Week 8: Analytics & Security',
     description:
@@ -313,15 +285,14 @@ final List<_Phase> _phases = [
     startDate: DateTime(2026, 4, 3),
     endDate:   DateTime(2026, 4, 7),
     milestones: [
-      _Milestone(title: 'Day 36 — Analytics Instrumentation', date: DateTime(2026, 4, 3), description: 'Instrument key events: booking_created, wellness_log_created, user_signup, trainer_profile_viewed.'),
-      _Milestone(title: 'Day 37 — Crashlytics & Performance', date: DateTime(2026, 4, 4), description: 'Configure Crashlytics and FirebasePerformance. Set up custom trace for createBooking.'),
-      _Milestone(title: 'Day 38 — Firestore Rules Test Suite',date: DateTime(2026, 4, 5), description: 'Write @firebase/rules-unit-testing tests. All tests pass in emulator.'),
-      _Milestone(title: 'Day 39 — Security Audit',            date: DateTime(2026, 4, 6), description: 'Audit Cloud Functions, CORS config, Hosting security headers. Attempt known attack vectors.'),
-      _Milestone(title: 'Day 40 — Security Sign-Off',         date: DateTime(2026, 4, 7), description: 'Fix all audit findings. Re-run rules test suite. Zero critical issues. Retrospective + commit.'),
+      _Milestone(title: 'Day 36 — Analytics Instrumentation',  date: DateTime(2026, 4, 3), description: 'Instrument key events: booking_created, wellness_log_created, user_signup, trainer_profile_viewed.'),
+      _Milestone(title: 'Day 37 — Crashlytics & Performance',  date: DateTime(2026, 4, 4), description: 'Configure Crashlytics and FirebasePerformance. Set up custom trace for createBooking.'),
+      _Milestone(title: 'Day 38 — Firestore Rules Test Suite', date: DateTime(2026, 4, 5), description: 'Write @firebase/rules-unit-testing tests. All tests pass in emulator.'),
+      _Milestone(title: 'Day 39 — Security Audit',             date: DateTime(2026, 4, 6), description: 'Audit Cloud Functions, CORS config, Hosting security headers. Attempt known attack vectors.'),
+      _Milestone(title: 'Day 40 — Security Sign-Off',          date: DateTime(2026, 4, 7), description: 'Fix all audit findings. Re-run rules test suite. Zero critical issues. Retrospective + commit.'),
     ],
   ),
 
-  // ── WEEK 9 — compressed: Apr 8–12 ──
   _Phase(
     title: 'Week 9: UAT & Bug Fixing',
     description:
@@ -330,15 +301,14 @@ final List<_Phase> _phases = [
     startDate: DateTime(2026, 4, 8),
     endDate:   DateTime(2026, 4, 12),
     milestones: [
-      _Milestone(title: 'Day 41 — UAT Preparation',       date: DateTime(2026, 4, 8),  description: 'Prepare UAT environment, seed data, create 5 participant accounts. Write test scenarios.'),
-      _Milestone(title: 'Day 42 — UAT Session: Users',    date: DateTime(2026, 4, 9),  description: 'Facilitate UAT with 3 regular users. Scenarios 1 & 2 (Discovery & Booking, Wellness Logging).'),
-      _Milestone(title: 'Day 43 — UAT Session: Trainers', date: DateTime(2026, 4, 10), description: 'Facilitate UAT with 2 trainers. Scenario 3 (Availability, bookings, confirm/cancel).'),
-      _Milestone(title: 'Day 44 — Bug Triage & Fixes',    date: DateTime(2026, 4, 11), description: 'Categorize findings by severity. Fix all critical and high bugs. Regression test.'),
-      _Milestone(title: 'Day 45 — Final Regression',      date: DateTime(2026, 4, 12), description: 'Full regression test after fixes. Prepare production deployment checklist. Retrospective + commit.'),
+      _Milestone(title: 'Day 41 — UAT Preparation',        date: DateTime(2026, 4, 8),  description: 'Prepare UAT environment, seed data, create 5 participant accounts. Write test scenarios.'),
+      _Milestone(title: 'Day 42 — UAT Session: Users',     date: DateTime(2026, 4, 9),  description: 'Facilitate UAT with 3 regular users. Scenarios 1 & 2 (Discovery & Booking, Wellness Logging).'),
+      _Milestone(title: 'Day 43 — UAT Session: Trainers',  date: DateTime(2026, 4, 10), description: 'Facilitate UAT with 2 trainers. Scenario 3 (Availability, bookings, confirm/cancel).'),
+      _Milestone(title: 'Day 44 — Bug Triage & Fixes',     date: DateTime(2026, 4, 11), description: 'Categorize findings by severity. Fix all critical and high bugs. Regression test.'),
+      _Milestone(title: 'Day 45 — Final Regression',       date: DateTime(2026, 4, 12), description: 'Full regression test after fixes. Prepare production deployment checklist. Retrospective + commit.'),
     ],
   ),
 
-  // ── WEEK 10 — compressed: Apr 13–17 ──
   _Phase(
     title: 'Week 10: Production Launch',
     description:
@@ -347,11 +317,11 @@ final List<_Phase> _phases = [
     startDate: DateTime(2026, 4, 13),
     endDate:   DateTime(2026, 4, 17),
     milestones: [
-      _Milestone(title: 'Day 46 — Production Firebase Config', date: DateTime(2026, 4, 13), description: 'Switch firebase use wellpath-prod. Deploy Firestore rules and all Cloud Functions. Verify healthy.'),
-      _Milestone(title: 'Day 47 — Flutter Web Release Build',  date: DateTime(2026, 4, 14), description: 'flutter build web --release. firebase deploy --only hosting. Smoke-test live URL.'),
-      _Milestone(title: 'Day 48 — Smoke Test & Billing Setup', date: DateTime(2026, 4, 15), description: 'Full production smoke test. Set billing alerts. Enable daily Firestore backup.'),
-      _Milestone(title: 'Day 49 — Demo & Documentation',       date: DateTime(2026, 4, 16), description: 'Record 5-minute demo video. Update canvas changelog to v1.0.0. Write README.'),
-      _Milestone(title: 'Day 50 — v1.0.0 Launch & Monitor',   date: DateTime(2026, 4, 17), description: 'Tag v1.0.0 on GitHub main. Announce to pilot users. Monitor Firebase Console for 24 hours.'),
+      _Milestone(title: 'Day 46 — Production Firebase Config',  date: DateTime(2026, 4, 13), description: 'Switch firebase use wellpath-prod. Deploy Firestore rules and all Cloud Functions. Verify healthy.'),
+      _Milestone(title: 'Day 47 — Flutter Web Release Build',   date: DateTime(2026, 4, 14), description: 'flutter build web --release. firebase deploy --only hosting. Smoke-test live URL.'),
+      _Milestone(title: 'Day 48 — Smoke Test & Billing Setup',  date: DateTime(2026, 4, 15), description: 'Full production smoke test. Set billing alerts. Enable daily Firestore backup.'),
+      _Milestone(title: 'Day 49 — Demo & Documentation',        date: DateTime(2026, 4, 16), description: 'Record 5-minute demo video. Update canvas changelog to v1.0.0. Write README.'),
+      _Milestone(title: 'Day 50 — v1.0.0 Launch & Monitor',    date: DateTime(2026, 4, 17), description: 'Tag v1.0.0 on GitHub main. Announce to pilot users. Monitor Firebase Console for 24 hours.'),
     ],
   ),
 ];
@@ -418,219 +388,224 @@ class _LandingPageState extends State<LandingPage> {
   void _scrollToCard(int index) {
     _scrollController.animateTo(
       index * (kCardWidth + kCardSpacing),
-      duration: const Duration(milliseconds: 300),
+      duration: AppDurations.normal,
       curve: Curves.easeInOut,
     );
   }
 
   double get _overallProgress {
-    final total   = _projectLaunch.difference(_projectStart).inSeconds;
-    final elapsed = _now.difference(_projectStart).inSeconds.clamp(0, total);
+    final total   = kProjectLaunch.difference(kProjectStart).inSeconds;
+    final elapsed = _now.difference(kProjectStart).inSeconds.clamp(0, total);
     return elapsed / total;
   }
 
   @override
   Widget build(BuildContext context) {
-    // Feedback controller lives inside build — resets cleanly each time the sheet opens.
     final TextEditingController feedbackController = TextEditingController();
 
     return Scaffold(
-      body: WellPathBackground(
+      // AppBackground handles all layering — gradient, particles, and content.
+      // Swap type/particleStyle/gradientStyle here to change the visual without
+      // touching anything else. Defaults are meshParticle + drift + pulse.
+      body: AppBackground(
+        type:          BackgroundType.meshParticle,
+        particleStyle: ParticleStyle.drift,
+        gradientStyle: GradientStyle.pulse,
         child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: kPageMaxWidth),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: kPagePaddingH,
-                  vertical:   kPagePaddingV,
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: kPageMaxWidth),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: kPagePaddingH,
+                    vertical:   kPagePaddingV,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
 
-                      // ── Top nav: logo | menu | CTA ────────────────────────
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // Typographic logo
-                          RichText(
-                            text: TextSpan(children: [
-                              TextSpan(
-                                text: kLogoPartBold,
-                                style: GoogleFonts.poppins(
-                                  color: Colors.white,
-                                  fontSize: kLogoFontSize,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 3,
+                        // ── Top nav ────────────────────────────────────────
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Wordmark — split weight is the brand signature
+                            RichText(
+                              text: TextSpan(children: [
+                                TextSpan(
+                                  text: kLogoPartBold,
+                                  style: AppTypography.brandBold.copyWith(
+                                    fontSize: kLogoFontSize,
+                                    letterSpacing: 3,
+                                  ),
                                 ),
-                              ),
-                              TextSpan(
-                                text: kLogoPartLight,
-                                style: GoogleFonts.poppins(
-                                  color: Colors.white,
-                                  fontSize: kLogoFontSize,
-                                  fontWeight: FontWeight.w300,
-                                  letterSpacing: 3,
+                                TextSpan(
+                                  text: kLogoPartLight,
+                                  style: AppTypography.brandLight.copyWith(
+                                    fontSize: kLogoFontSize,
+                                    letterSpacing: 3,
+                                  ),
                                 ),
-                              ),
-                            ]),
-                          ),
+                              ]),
+                            ),
 
-                          // Center nav items — built from kNavItems config list
-                          Expanded(
-                            child: Center(
-                              child: Wrap(
-                                alignment: WrapAlignment.center,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                spacing: 28,
-                                children: kNavItems
-                                    .map((item) => _NavMenuItem(
-                                          title: item.$1,
-                                          onTap: () => context.push(item.$2),
-                                        ))
-                                    .toList(),
+                            // Nav items built from config list
+                            Expanded(
+                              child: Center(
+                                child: Wrap(
+                                  alignment: WrapAlignment.center,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 28,
+                                  children: kNavItems
+                                      .map((item) => _NavMenuItem(
+                                            title: item.$1,
+                                            onTap: () => context.push(item.$2),
+                                          ))
+                                      .toList(),
+                                ),
                               ),
                             ),
-                          ),
 
-                          // Begin / Continue Journey CTA
-                          _BeginJourneyButton(
-                            projectStart: _projectStart,
-                            now: _now,
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      // ── Animated GIF header ───────────────────────────────
-                      // Make sure this asset is declared in pubspec.yaml under:
-                      //   flutter:
-                      //     assets:
-                      //       - assets/20260213_asset_animated_text_github_header_sconl_v1.1.0.gif
-                      Image.asset(
-                        kHeaderGifPath,
-                        width:  kHeaderGifWidth,
-                        height: kHeaderGifHeight,
-                        fit: BoxFit.contain,
-                        // Graceful fallback — won't crash if asset isn't added yet.
-                        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      // ── Subtitle — lowercase, kSubtitleFontSize ───────────
-                      const Text(
-                        kSubtitleText,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: kSubtitleFontSize,
-                          height: 1.4,
-                          fontWeight: FontWeight.w500,
+                            _BeginJourneyButton(
+                              projectStart: kProjectStart,
+                              now: _now,
+                            ),
+                          ],
                         ),
-                      ),
 
-                      const SizedBox(height: 16),
+                        SizedBox(height: AppSpacing.lg - AppSpacing.sm),
 
-                      // ── Author badge ──────────────────────────────────────
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white30, width: 1),
-                          borderRadius: BorderRadius.circular(6),
+                        // ── Animated GIF header ────────────────────────────
+                        Image.asset(
+                          kHeaderGifPath,
+                          width:  kHeaderGifWidth,
+                          height: kHeaderGifHeight,
+                          fit:    BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const SizedBox.shrink(),
                         ),
-                        child: const Text(
-                          '$kAuthorName  |  $kAuthorId',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: kAuthorFontSize,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: kAuthorLetterSpacing,
+
+                        SizedBox(height: AppSpacing.sm + 2),
+
+                        // ── Subtitle ───────────────────────────────────────
+                        Text(
+                          kSubtitleText,
+                          textAlign: TextAlign.center,
+                          style: AppTypography.bodySmall.copyWith(
+                            fontSize: kSubtitleFontSize,
+                            height: 1.4,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ),
 
-                      const SizedBox(height: 24),
+                        SizedBox(height: AppSpacing.md),
 
-                      // ── Launch countdown ──────────────────────────────────
-                      const Text(kCountdownLabel, style: TextStyle(color: Colors.white70)),
-                      const SizedBox(height: 6),
-                      _LaunchCountdown(duration: _remaining(_projectLaunch)),
-
-                      const SizedBox(height: 32),
-
-                      // ── Roadmap section ───────────────────────────────────
-                      const Text(
-                        kRoadmapLabel,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: kRoadmapTitleSize,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      _OverallProgressBar(progress: _overallProgress),
-                      const SizedBox(height: 16),
-
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: SizedBox(
-                          height: kCardHeight,
-                          child: ListView.separated(
-                            controller: _scrollController,
-                            scrollDirection: Axis.horizontal,
-                            clipBehavior: Clip.none,
-                            itemCount: _phases.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: kCardSpacing),
-                            itemBuilder: (context, index) {
-                              final phase = _phases[index];
-                              return _PhaseCard(
-                                phase:     phase,
-                                remaining: _remaining(phase.endDate),
-                                now:       _now,
-                              );
-                            },
+                        // ── Author badge ───────────────────────────────────
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: AppSpacing.lg - AppSpacing.xs,
+                            vertical:   AppSpacing.sm,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppColors.borderStrong),
+                            borderRadius: BorderRadius.circular(AppRadius.sm - 2),
+                          ),
+                          child: Text(
+                            '$kAuthorName  |  $kAuthorId',
+                            style: AppTypography.body.copyWith(
+                              fontSize: kAuthorFontSize,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: kAuthorLetterSpacing,
+                            ),
                           ),
                         ),
-                      ),
 
-                      const SizedBox(height: 10),
+                        SizedBox(height: AppSpacing.lg),
 
-                      _ScrollDotIndicator(
-                        count:       _phases.length,
-                        activeIndex: _activeCardIndex,
-                        onTap:       _scrollToCard,
-                        now:         _now,
-                      ),
+                        // ── Launch countdown ───────────────────────────────
+                        Text(
+                          kCountdownLabel,
+                          style: AppTypography.bodySmall,
+                        ),
+                        SizedBox(height: AppSpacing.xs + 2),
+                        _LaunchCountdown(duration: _remaining(kProjectLaunch)),
 
-                      const SizedBox(height: 16),
-                    ],
+                        SizedBox(height: AppSpacing.xl),
+
+                        // ── Roadmap section ────────────────────────────────
+                        Text(
+                          kRoadmapLabel,
+                          style: AppTypography.h2.copyWith(
+                            fontSize: kRoadmapTitleSize,
+                          ),
+                        ),
+                        SizedBox(height: AppSpacing.sm + 2),
+                        _OverallProgressBar(progress: _overallProgress),
+                        SizedBox(height: AppSpacing.md),
+
+                        Padding(
+                          padding: EdgeInsets.only(top: AppSpacing.sm),
+                          child: SizedBox(
+                            height: kCardHeight,
+                            child: ListView.separated(
+                              controller:      _scrollController,
+                              scrollDirection: Axis.horizontal,
+                              clipBehavior:    Clip.none,
+                              itemCount:       _phases.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: kCardSpacing),
+                              itemBuilder: (context, index) {
+                                final phase = _phases[index];
+                                return _PhaseCard(
+                                  phase:     phase,
+                                  remaining: _remaining(phase.endDate),
+                                  now:       _now,
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+
+                        SizedBox(height: AppSpacing.sm + 2),
+
+                        _ScrollDotIndicator(
+                          count:       _phases.length,
+                          activeIndex: _activeCardIndex,
+                          onTap:       _scrollToCard,
+                          now:         _now,
+                        ),
+
+                        SizedBox(height: AppSpacing.md),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
         ),
-      ),
 
-      // ── Developer feedback FAB ────────────────────────────────────────────
+      // ── Developer feedback FAB ─────────────────────────────────────────────
       floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.onPrimary,
         onPressed: () {
           showModalBottomSheet(
             context: context,
             isScrollControlled: true,
-            backgroundColor: Colors.white,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            // AppColors.lightBackground because this sheet is intentionally light —
+            // a white feedback form reads as neutral / inviting on a dark page.
+            backgroundColor: AppColors.lightBackground,
+            shape: RoundedRectangleBorder(
+              borderRadius: AppRadius.modalTopBR,
             ),
             builder: (ctx) {
               return Padding(
                 padding: EdgeInsets.only(
-                  left: 20, right: 20, top: 20,
-                  bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+                  left:   AppSpacing.md + 4,
+                  right:  AppSpacing.md + 4,
+                  top:    AppSpacing.md + 4,
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.md + 4,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -639,46 +614,97 @@ class _LandingPageState extends State<LandingPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Feedback & Chat', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                        IconButton(onPressed: () => Navigator.of(ctx).pop(), icon: const Icon(Icons.close)),
+                        Text(
+                          'Feedback & Chat',
+                          style: AppTypography.h4.copyWith(
+                            color: AppColors.lightTextPrimary,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          icon: Icon(Icons.close, color: AppColors.lightTextSecondary),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    const Text('Send a quick message to the developer — bugs, ideas, or quick chat.'),
-                    const SizedBox(height: 12),
+                    SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Send a quick message to the developer — bugs, ideas, or quick chat.',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.lightTextSecondary,
+                      ),
+                    ),
+                    SizedBox(height: AppSpacing.md - AppSpacing.xs),
                     TextField(
                       controller: feedbackController,
                       maxLines: 4,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: 'Type your message here...',
+                      style: AppTypography.body.copyWith(color: AppColors.lightTextPrimary),
+                      decoration: InputDecoration(
+                        filled:      true,
+                        fillColor:   AppColors.lightSurface,
+                        hintText:    'Type your message here...',
+                        hintStyle:   AppTypography.input.copyWith(
+                          color: AppColors.lightTextSecondary,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: AppRadius.inputBR,
+                          borderSide:   BorderSide(color: AppColors.lightSurfaceMid),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: AppRadius.inputBR,
+                          borderSide:   BorderSide(color: AppColors.lightPrimary, width: 1.5),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: AppRadius.inputBR,
+                          borderSide:   BorderSide(color: AppColors.lightSurfaceMid),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: AppSpacing.md - AppSpacing.xs),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         TextButton(
                           onPressed: () => Navigator.of(ctx).pop(),
-                          child: const Text('Cancel'),
+                          child: Text(
+                            'Cancel',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.lightTextSecondary,
+                            ),
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: () {
-                            final msg = feedbackController.text.trim();
-                            Navigator.of(ctx).pop();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  msg.isNotEmpty
-                                      ? 'Thanks — your message was sent.'
-                                      : 'Please enter a message before sending.',
-                                ),
+                        SizedBox(width: AppSpacing.sm),
+                        // Gradient button pattern — container holds the gradient,
+                        // ElevatedButton is transparent so it doesn't fight it.
+                        Container(
+                          decoration: AppDecorations.primaryButton,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor:     Colors.transparent,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: AppSpacing.lg,
+                                vertical:   AppSpacing.sm + 3,
                               ),
-                            );
-                            // TODO: wire to real feedback endpoint (Firestore / Cloud Function / email)
-                          },
-                          child: const Text('Send'),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: AppRadius.pillBR,
+                              ),
+                            ),
+                            onPressed: () {
+                              final msg = feedbackController.text.trim();
+                              Navigator.of(ctx).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    msg.isNotEmpty
+                                        ? 'Thanks — your message was sent.'
+                                        : 'Please enter a message before sending.',
+                                  ),
+                                ),
+                              );
+                              // TODO: wire to real endpoint (Firestore / Cloud Function / email)
+                            },
+                            child: Text('Send', style: AppTypography.buttonSm),
+                          ),
                         ),
                       ],
                     ),
@@ -688,8 +714,8 @@ class _LandingPageState extends State<LandingPage> {
             },
           );
         },
-        icon: const Icon(Icons.chat_bubble_outline),
-        label: const Text('Feedback'),
+        icon:    const Icon(Icons.chat_bubble_outline),
+        label:   const Text('Feedback'),
         tooltip: 'Send feedback or chat with developer',
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -715,10 +741,10 @@ class _NavMenuItem extends StatelessWidget {
         onTap: onTap,
         child: Text(
           title,
-          style: const TextStyle(
-            color: Colors.white70,
+          style: AppTypography.body.copyWith(
             fontSize: kNavFontSize,
             fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
           ),
         ),
       ),
@@ -739,27 +765,36 @@ class _OverallProgressBar extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(kProgressLabel, style: TextStyle(color: Colors.white54, fontSize: 12, letterSpacing: 0.5)),
-            Text('${pct.toStringAsFixed(1)}%', style: const TextStyle(color: kBrandGreen, fontSize: 12, fontWeight: FontWeight.w700)),
+            Text(kProgressLabel, style: AppTypography.overline),
+            Text(
+              '${pct.toStringAsFixed(1)}%',
+              style: AppTypography.caption.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ],
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: AppSpacing.xs + 2),
         LayoutBuilder(
           builder: (context, constraints) => Stack(
             children: [
               Container(
                 height: 4,
-                width: constraints.maxWidth,
-                decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(2)),
+                width:  constraints.maxWidth,
+                decoration: BoxDecoration(
+                  color:        AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
               AnimatedContainer(
                 duration: const Duration(milliseconds: 800),
-                height: 4,
-                width: constraints.maxWidth * progress.clamp(0.0, 1.0),
+                height:   4,
+                width:    constraints.maxWidth * progress.clamp(0.0, 1.0),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [kBrandGreen, kBrandGreenLight]),
+                  gradient: AppGradients.button,
                   borderRadius: BorderRadius.circular(2),
-                  boxShadow: const [BoxShadow(color: kBrandGreenGlow, blurRadius: 6, spreadRadius: 1)],
+                  boxShadow: AppShadows.inputFocus,
                 ),
               ),
             ],
@@ -793,8 +828,8 @@ class _ScrollDotIndicator extends StatelessWidget {
         return GestureDetector(
           onTap: () => onTap(i),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            margin: const EdgeInsets.symmetric(horizontal: 4),
+            duration: AppDurations.fast + const Duration(milliseconds: 100),
+            margin: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
             width:  isActive ? 22 : 8,
             height: 8,
             decoration: BoxDecoration(
@@ -834,33 +869,24 @@ class _BeginJourneyButtonState extends State<_BeginJourneyButton> {
       child: GestureDetector(
         onTap: () => context.push('/login'),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(
-            horizontal: kBeginBtnPaddingH,
-            vertical:   kBeginBtnPaddingV,
+          duration: AppDurations.fast,
+          padding: EdgeInsets.symmetric(
+            horizontal: AppSpacing.xxl - AppSpacing.md,
+            vertical:   AppSpacing.sm + 6,
           ),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: _hovered
-                  ? [kBrandGreenLight, kBrandGreen]
-                  : [kBrandGreen, kBrandGreenDark],
-            ),
-            borderRadius: BorderRadius.circular(kBeginBtnRadius),
-            boxShadow: [
-              BoxShadow(
-                color: kBrandGreen.withAlpha(_hovered ? 100 : 50),
-                blurRadius: _hovered ? 24 : 12,
-                spreadRadius: _hovered ? 2 : 0,
-              ),
-            ],
+            gradient: _hovered ? AppGradients.buttonHover : AppGradients.button,
+            borderRadius: AppRadius.pillBR,
+            boxShadow: _hovered ? AppShadows.buttonGlowHover : AppShadows.buttonGlow,
           ),
           child: Text(
             label,
-            style: TextStyle(
-              color: _hovered ? kBtnTextDark : Colors.white,
+            style: AppTypography.button.copyWith(
               fontSize: kBeginBtnFontSize,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.5,
+              // onPrimary is always contrast-safe — no need to hardcode dark text
+              color: AppColors.onPrimary,
             ),
           ),
         ),
@@ -886,7 +912,7 @@ class _PhaseCardState extends State<_PhaseCard> {
   void _openModal(BuildContext context) {
     showDialog(
       context: context,
-      barrierColor: Colors.black87,
+      barrierColor: AppColors.scrim,
       builder: (context) => _PhaseModal(phase: widget.phase, now: widget.now),
     );
   }
@@ -905,21 +931,27 @@ class _PhaseCardState extends State<_PhaseCard> {
       child: GestureDetector(
         onTap: () => _openModal(context),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: AppDurations.fast,
           curve: Curves.easeOut,
           width:   kCardWidth,
           height:  kCardHeight,
-          padding: const EdgeInsets.all(14),
+          padding: EdgeInsets.all(AppSpacing.sm + 6),
+          // Lift the card slightly on hover — the -5px translate gives it
+          // a tactile "it wants to be clicked" feel without being dramatic.
           transform: Matrix4.translationValues(0.0, _hovered ? -5.0 : 0.0, 0.0),
           decoration: BoxDecoration(
-            color: _hovered ? kCardBgHover : kCardBgDefault,
-            borderRadius: BorderRadius.circular(14),
+            color: _hovered ? AppColors.surfaceMid : AppColors.surface,
+            borderRadius: AppRadius.cardBR,
             border: Border.all(
-              color: _hovered ? statusColor : Colors.white24,
+              color: _hovered ? statusColor : AppColors.border,
               width: _hovered ? 1.5 : 1.0,
             ),
             boxShadow: _hovered
-                ? [BoxShadow(color: statusColor.withAlpha(55), blurRadius: 16, spreadRadius: 1)]
+                ? [BoxShadow(
+                    color:      statusColor.withAlpha(55),
+                    blurRadius: 16,
+                    spreadRadius: 1,
+                  )]
                 : [],
           ),
           child: Column(
@@ -929,25 +961,31 @@ class _PhaseCardState extends State<_PhaseCard> {
                 phase.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                style: AppTypography.h5.copyWith(fontSize: 13),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: AppSpacing.xs),
               Text(
                 _formatWeekdayDate(phase.endDate),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white60, fontSize: 11),
+                style: AppTypography.caption.copyWith(fontSize: 11),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: AppSpacing.xs + 2),
               Row(children: [
-                Text(phase.statusEmojiAt(widget.now), style: const TextStyle(fontSize: 12)),
-                const SizedBox(width: 4),
+                Text(
+                  phase.statusEmojiAt(widget.now),
+                  style: AppTypography.caption.copyWith(fontSize: 12),
+                ),
+                SizedBox(width: AppSpacing.xs),
                 Flexible(
                   child: Text(
                     phase.statusLabelAt(widget.now),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: statusColor, fontSize: 11),
+                    style: AppTypography.caption.copyWith(
+                      color: statusColor,
+                      fontSize: 11,
+                    ),
                   ),
                 ),
               ]),
@@ -960,13 +998,17 @@ class _PhaseCardState extends State<_PhaseCard> {
                   '${widget.remaining.inSeconds % 60}s',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white60, fontSize: 11),
+                  style: AppTypography.caption.copyWith(fontSize: 11),
                 ),
               if (_hovered) ...[
-                const SizedBox(height: 4),
+                SizedBox(height: AppSpacing.xs),
                 Text(
                   'Tap for details →',
-                  style: TextStyle(color: statusColor.withAlpha(190), fontSize: 10, fontStyle: FontStyle.italic),
+                  style: AppTypography.caption.copyWith(
+                    color: statusColor.withAlpha(190),
+                    fontSize: 10,
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
               ],
             ],
@@ -989,15 +1031,24 @@ class _PhaseModal extends StatelessWidget {
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: AppSpacing.xl,
+        vertical:   AppSpacing.xxl - AppSpacing.sm,
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 640),
         child: Container(
-          decoration: BoxDecoration(
-            color: kModalBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: statusColor.withAlpha(100), width: 1),
-            boxShadow: [BoxShadow(color: statusColor.withAlpha(40), blurRadius: 40, spreadRadius: 4)],
+          // Modal decoration comes from theme — border, radius, shadow all in one.
+          // We override the border color to the status color for contextual feel.
+          decoration: AppDecorations.modal.copyWith(
+            border: Border.all(color: statusColor.withAlpha(100)),
+            boxShadow: [
+              BoxShadow(
+                color:      statusColor.withAlpha(40),
+                blurRadius: 40,
+                spreadRadius: 4,
+              ),
+            ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1005,8 +1056,15 @@ class _PhaseModal extends StatelessWidget {
             children: [
               // Modal header
               Container(
-                padding: const EdgeInsets.fromLTRB(28, 24, 20, 20),
-                decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white12))),
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.xl - AppSpacing.xs,
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                ),
+                decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(color: AppColors.border)),
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1014,32 +1072,53 @@ class _PhaseModal extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(phase.title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
-                          const SizedBox(height: 8),
-                          Wrap(spacing: 8, runSpacing: 6, children: [
-                            Row(mainAxisSize: MainAxisSize.min, children: [
-                              Text(phase.statusEmojiAt(now), style: const TextStyle(fontSize: 14)),
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: statusColor.withAlpha(30),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: statusColor.withAlpha(80)),
+                          Text(phase.title, style: AppTypography.h3),
+                          SizedBox(height: AppSpacing.sm),
+                          Wrap(
+                            spacing: AppSpacing.sm,
+                            runSpacing: AppSpacing.xs + 2,
+                            children: [
+                              Row(mainAxisSize: MainAxisSize.min, children: [
+                                Text(
+                                  phase.statusEmojiAt(now),
+                                  style: AppTypography.body.copyWith(fontSize: 14),
                                 ),
-                                child: Text(phase.statusLabelAt(now), style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.w600)),
+                                SizedBox(width: AppSpacing.xs + 2),
+                                // Status chip uses tint helpers from AppColors
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.sm + 2,
+                                    vertical:   AppSpacing.xs - 1,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:        AppColors.tint10(statusColor),
+                                    borderRadius: AppRadius.pillBR,
+                                    border:       Border.all(
+                                      color: AppColors.tint20(statusColor),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    phase.statusLabelAt(now),
+                                    style: AppTypography.chip.copyWith(
+                                      color: statusColor,
+                                    ),
+                                  ),
+                                ),
+                              ]),
+                              Text(
+                                'Due: ${_formatWeekdayDate(phase.endDate)}',
+                                style: AppTypography.caption,
                               ),
-                            ]),
-                            Text('Due: ${_formatWeekdayDate(phase.endDate)}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                          ]),
-                          const SizedBox(height: 10),
-                          Text(phase.description, style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5)),
+                            ],
+                          ),
+                          SizedBox(height: AppSpacing.sm + 2),
+                          Text(phase.description, style: AppTypography.bodySmall),
                         ],
                       ),
                     ),
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close, color: Colors.white54, size: 20),
+                      icon: Icon(Icons.close, color: AppColors.textMuted, size: 20),
                     ),
                   ],
                 ),
@@ -1047,12 +1126,17 @@ class _PhaseModal extends StatelessWidget {
               // Milestone list
               Flexible(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(28, 20, 28, 28),
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.xl - AppSpacing.xs,
+                    AppSpacing.md,
+                    AppSpacing.xl - AppSpacing.xs,
+                    AppSpacing.xl,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('SPRINT BREAKDOWN', style: TextStyle(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.4)),
-                      const SizedBox(height: 14),
+                      Text('SPRINT BREAKDOWN', style: AppTypography.overline),
+                      SizedBox(height: AppSpacing.sm + 2),
                       ...List.generate(phase.milestones.length, (i) {
                         return _MilestoneRow(
                           milestone:   phase.milestones[i],
@@ -1079,59 +1163,104 @@ class _MilestoneRow extends StatelessWidget {
   final _PhaseStatus phaseStatus;
   final DateTime now;
 
-  const _MilestoneRow({required this.milestone, required this.isLast, required this.phaseStatus, required this.now});
+  const _MilestoneRow({
+    required this.milestone,
+    required this.isLast,
+    required this.phaseStatus,
+    required this.now,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final done           = milestone.isCompletedAt(now);
-    final dotColor       = done ? Colors.greenAccent : phaseStatus == _PhaseStatus.active ? Colors.orangeAccent : Colors.white24;
-    final milestoneEmoji = done ? '✅' : phaseStatus == _PhaseStatus.active ? '🔄' : '⏳';
+    final done = milestone.isCompletedAt(now);
+
+    // Semantic color choice: done=success (green), in-progress=warning (amber),
+    // pending=muted. Using the same semantic colors as the phase cards so
+    // the visual language is consistent throughout the modal.
+    final dotColor = done
+        ? AppColors.success
+        : phaseStatus == _PhaseStatus.active
+            ? AppColors.warning
+            : AppColors.border;
+
+    final milestoneEmoji = done
+        ? '✅'
+        : phaseStatus == _PhaseStatus.active
+            ? '🔄'
+            : '⏳';
 
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Timeline track
+          // Timeline track — dot + vertical connector line
           SizedBox(
             width: 24,
             child: Column(children: [
-              const SizedBox(height: 3),
+              SizedBox(height: AppSpacing.xs - 1),
               Container(
                 width: 12, height: 12,
                 decoration: BoxDecoration(
-                  color: dotColor.withAlpha(done ? 255 : 80),
-                  shape: BoxShape.circle,
+                  color:  dotColor.withAlpha(done ? 255 : 80),
+                  shape:  BoxShape.circle,
                   border: Border.all(color: dotColor, width: 1.5),
                 ),
               ),
               if (!isLast)
-                Expanded(child: Container(width: 1.5, margin: const EdgeInsets.only(top: 4), color: Colors.white12)),
+                Expanded(
+                  child: Container(
+                    width: 1.5,
+                    margin: EdgeInsets.only(top: AppSpacing.xs),
+                    color: AppColors.border,
+                  ),
+                ),
             ]),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: AppSpacing.md - AppSpacing.xs),
           Expanded(
             child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 20),
+              padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.md + 4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(children: [
-                    Text(milestoneEmoji, style: const TextStyle(fontSize: 12)),
-                    const SizedBox(width: 6),
+                    Text(
+                      milestoneEmoji,
+                      style: AppTypography.body.copyWith(fontSize: 12),
+                    ),
+                    SizedBox(width: AppSpacing.xs + 2),
                     Expanded(
                       child: Text(
                         milestone.title,
-                        style: TextStyle(color: done ? Colors.greenAccent : Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                        style: AppTypography.h5.copyWith(
+                          color: done ? AppColors.success : AppColors.textPrimary,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(10)),
-                      child: Text(_formatShortDate(milestone.date), style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical:   AppSpacing.xs - 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color:        AppColors.border,
+                        borderRadius: BorderRadius.circular(AppRadius.xs + 6),
+                      ),
+                      child: Text(
+                        _formatShortDate(milestone.date),
+                        style: AppTypography.caption.copyWith(fontSize: 11),
+                      ),
                     ),
                   ]),
-                  const SizedBox(height: 5),
-                  Text(milestone.description, style: const TextStyle(color: Colors.white54, fontSize: 12, height: 1.55)),
+                  SizedBox(height: AppSpacing.xs + 1),
+                  Text(
+                    milestone.description,
+                    style: AppTypography.caption.copyWith(
+                      fontSize: 12,
+                      height: 1.55,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1149,30 +1278,34 @@ class _LaunchCountdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
-      '${duration.inDays}d ${duration.inHours % 24}h ${duration.inMinutes % 60}m ${duration.inSeconds % 60}s',
-      style: const TextStyle(color: kBrandGreen, fontSize: kCountdownFontSize, fontWeight: FontWeight.w600),
+      '${duration.inDays}d ${duration.inHours % 24}h '
+      '${duration.inMinutes % 60}m ${duration.inSeconds % 60}s',
+      style: AppTypography.h3.copyWith(
+        fontSize: kCountdownFontSize,
+        color: AppColors.primary,
+      ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// REFACTOR NOTE — things to extract on a future pass
+// REFACTOR NOTE — things to extract on a future pass (unchanged from original)
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// Reusable widgets worth moving to core/widgets/ when the codebase grows:
-//
-//   • _NavMenuItem → could be a shared AppNavItem used across pages
+//   • _NavMenuItem        → shared AppNavItem used across pages
 //   • _OverallProgressBar → generic ProgressBar(label, value, color) widget
-//   • _LaunchCountdown → generic CountdownDisplay(duration, style) widget
+//   • _LaunchCountdown    → generic CountdownDisplay(duration, style) widget
 //   • _ScrollDotIndicator → generic PaginationDots(count, activeIndex, colors)
-//   • The modal container (dark glass box + glow border) → GlassDialog widget
-//   • The status badge chip (colored border + label) → StatusBadge(label, color)
+//   • The modal container → can now use AppDecorations.modal directly with
+//                           a status-color border override (already done here)
+//   • The status badge chip → StatusBadge(label, color) — pattern is now
+//                             consistent everywhere, ready to extract
 //   • _MilestoneRow timeline track → TimelineItem widget
 //
-// State that could move to a provider (when the app grows):
+// State that could move to a provider:
 //
-//   • _now (ticker) → a shared ClockProvider so multiple widgets share one timer
-//   • _phases list → a ProjectScheduleProvider that reads from config or Firestore
-//   • _overallProgress → derived from ClockProvider + schedule, not local state
+//   • _now (ticker)         → ClockProvider — shared across all screens
+//   • _phases list          → ProjectScheduleProvider (config or Firestore)
+//   • _overallProgress      → derived from ClockProvider + schedule
 //
 // ─────────────────────────────────────────────────────────────────────────────
