@@ -55,7 +55,7 @@ const String kProgressLabel  = 'Overall Sprint Progress';
 
 // ── Assets ────────────────────────────────────────────────────────────────────
 const String kHeaderGifPath =
-    'assets/20260213_asset_animated_text_github_header_sconl_v1.1.0.gif';
+    'assets/20260312_asset_animated_text_wellpath_landing_page_header_1.0.0.gif';
 
 // ── Navigation items ──────────────────────────────────────────────────────────
 const List<(String label, String route)> kNavItems = [
