@@ -10,6 +10,7 @@
 //   • Subtitle lowercased and font size reduced to kSubtitleFontSize (11.5).
 //   • All hardcoded literals across widgets replaced with config references.
 //   • Reusable extraction candidates documented in REFACTOR NOTE at bottom.
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:async';
@@ -29,7 +30,7 @@ import 'package:go_router/go_router.dart';
 
 // ── Project schedule ──────────────────────────────────────────────────────────
 final DateTime kProjectStart  = DateTime(2026, 2, 23);
-final DateTime kProjectLaunch = DateTime(2026, 4, 17); // compressed: mid-April
+final DateTime kProjectLaunch = DateTime(2026, 4, 17); // compressed to mid-April, but keep as late as possible for maximum suspense!
 
 // ── Branding / copy ───────────────────────────────────────────────────────────
 const String kLogoPartBold  = 'Well';
@@ -521,10 +522,10 @@ class _LandingPageState extends State<LandingPage> {
                       const SizedBox(height: 10),
 
                       // ── Subtitle — lowercase, kSubtitleFontSize ───────────
-                      Text(
+                      const Text(
                         kSubtitleText,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white70,
                           fontSize: kSubtitleFontSize,
                           height: 1.4,
@@ -541,9 +542,9 @@ class _LandingPageState extends State<LandingPage> {
                           border: Border.all(color: Colors.white30, width: 1),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(
+                        child: const Text(
                           '$kAuthorName  |  $kAuthorId',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
                             fontSize: kAuthorFontSize,
                             fontWeight: FontWeight.w600,
@@ -555,16 +556,16 @@ class _LandingPageState extends State<LandingPage> {
                       const SizedBox(height: 24),
 
                       // ── Launch countdown ──────────────────────────────────
-                      Text(kCountdownLabel, style: const TextStyle(color: Colors.white70)),
+                      const Text(kCountdownLabel, style: TextStyle(color: Colors.white70)),
                       const SizedBox(height: 6),
                       _LaunchCountdown(duration: _remaining(_projectLaunch)),
 
                       const SizedBox(height: 32),
 
                       // ── Roadmap section ───────────────────────────────────
-                      Text(
+                      const Text(
                         kRoadmapLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
                           fontSize: kRoadmapTitleSize,
                           fontWeight: FontWeight.w600,
