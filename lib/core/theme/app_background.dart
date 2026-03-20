@@ -37,7 +37,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 
-import 'theme.dart';
+import 'app_theme.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG BLOCK — all tunable defaults live here

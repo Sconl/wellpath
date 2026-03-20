@@ -1,35 +1,43 @@
 // lib/features/auth/presentation/widgets/auth_widgets.dart
 //
-// Shared auth-screen widgets.
-// Exports: WellPathLogo, WellPathField (with focusNode), WellPathButton, WellPathDivider
+// ─────────────────────────────────────────────────────────────────────────────
+// CHANGELOG
+// ─────────────────────────────────────────────────────────────────────────────
+//   v1.0.0 — Full rewrite. Private _T class removed.
+//            All GoogleFonts.poppins() calls → AppTypography.*
+//            All Color literals → AppColors.*
+//            All magic radii/spacing → AppRadius.* / AppSpacing.*
+//            WellPathButton gradients → AppGradients.button / buttonHover
+//            WellPathButton text color → AppColors.onPrimary (WCAG-computed)
+//            WellPathDivider → AppColors.border + AppTypography.helper
+//   v1.1.0 — Import path corrected: app_theme.dart is 4 levels up from
+//            lib/features/auth/presentation/widgets/ (widgets → presentation
+//            → auth → features → lib → core/theme).
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// SHARED COMPONENTS:
+//   WellPathLogo      — split-weight "Well" bold / "Path" light wordmark
+//   WellPathField     — themed TextFormField with password toggle + focus chain
+//   WellPathButton    — hover-aware gradient CTA button
+//   WellPathDivider   — "OR" divider between form sections
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-abstract class _T {
-  static const surface  = Color(0xFF0A1F12);
-  static const primary  = Color(0xFF00CC66);
-  static const primaryL = Color(0xFF00FF99);
-  static const primaryD = Color(0xFF009944);
-  static const border   = Color(0x33FFFFFF);
-  static const txtPri   = Colors.white;
-  static const txtSec   = Colors.white54;
-  static const err      = Colors.redAccent;
-  static const rField   = 10.0;
-  static const rButton  = 50.0;
-  static const sm       = 8.0;
-  static const md       = 16.0;
-}
+// Import path: this file is at lib/features/auth/presentation/widgets/
+// ../../../../ steps back to lib/, then core/theme/app_theme.dart
+import '../../../../core/theme/app_theme.dart';
 
-// ── WellPathLogo ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// WellPathLogo
+// ─────────────────────────────────────────────────────────────────────────────
 
 class WellPathLogo extends StatelessWidget {
-  final double fontSize;
+  final double    fontSize;
   final TextAlign textAlign;
 
   const WellPathLogo({
     super.key,
-    this.fontSize = 36,
+    this.fontSize  = 36,
     this.textAlign = TextAlign.center,
   });
 
@@ -37,59 +45,58 @@ class WellPathLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return RichText(
       textAlign: textAlign,
-      text: TextSpan(
-        children: [
-          TextSpan(
-            text: 'Well',
-            style: GoogleFonts.poppins(
-              color: _T.txtPri,
-              fontSize: fontSize,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 3,
-            ),
+      text: TextSpan(children: [
+        TextSpan(
+          text: 'Well',
+          style: AppTypography.brandBold.copyWith(
+            fontSize:      fontSize,
+            letterSpacing: 3,
+            color:         AppColors.textPrimary,
           ),
-          TextSpan(
-            text: 'Path',
-            style: GoogleFonts.poppins(
-              color: _T.txtPri,
-              fontSize: fontSize,
-              fontWeight: FontWeight.w300,
-              letterSpacing: 3,
-            ),
+        ),
+        TextSpan(
+          text: 'Path',
+          // The split between bold/light IS the brand signature —
+          // textSecondary (~54% white) on the light half creates the
+          // weight contrast without changing hue.
+          style: AppTypography.brandLight.copyWith(
+            fontSize:      fontSize,
+            letterSpacing: 3,
+            color:         AppColors.textSecondary,
           ),
-        ],
-      ),
+        ),
+      ]),
     );
   }
 }
 
-// ── WellPathField ─────────────────────────────────────────────────────────────
-// FIX: added focusNode parameter — was missing, caused undefined_named_parameter
-// errors on every field usage in signup_screen.dart and login_screen.dart.
+// ─────────────────────────────────────────────────────────────────────────────
+// WellPathField
+// ─────────────────────────────────────────────────────────────────────────────
 
 class WellPathField extends StatefulWidget {
-  final TextEditingController controller;
-  final String label;
-  final bool obscureText;
-  final TextInputType? keyboardType;
+  final TextEditingController       controller;
+  final String                      label;
+  final bool                        obscureText;
+  final TextInputType?              keyboardType;
   final String? Function(String?)? validator;
-  final TextInputAction? textInputAction;
-  final VoidCallback? onEditingComplete;
-  final Widget? prefixIcon;
-  final bool autofocus;
-  final FocusNode? focusNode; // ← the fix
+  final TextInputAction?            textInputAction;
+  final VoidCallback?               onEditingComplete;
+  final Widget?                     prefixIcon;
+  final bool                        autofocus;
+  final FocusNode?                  focusNode;
 
   const WellPathField({
     super.key,
     required this.controller,
     required this.label,
-    this.obscureText = false,
+    this.obscureText        = false,
     this.keyboardType,
     this.validator,
     this.textInputAction,
     this.onEditingComplete,
     this.prefixIcon,
-    this.autofocus = false,
+    this.autofocus          = false,
     this.focusNode,
   });
 
@@ -117,75 +124,65 @@ class _WellPathFieldState extends State<WellPathField> {
       textInputAction:   widget.textInputAction,
       onEditingComplete: widget.onEditingComplete,
       autofocus:         widget.autofocus,
-      style: GoogleFonts.poppins(
-        color: _T.txtPri,
-        fontSize: 14,
-        fontWeight: FontWeight.w400,
-      ),
+      style:             AppTypography.input,
       decoration: InputDecoration(
-        labelText: widget.label,
-        labelStyle: GoogleFonts.poppins(
-          color: _T.txtSec,
-          fontSize: 13,
-          fontWeight: FontWeight.w300,
-        ),
+        labelText:  widget.label,
+        labelStyle: AppTypography.inputLabel,
         filled:     true,
-        fillColor:  _T.surface,
+        fillColor:  AppColors.surface,
         prefixIcon: widget.prefixIcon,
+        // Visibility toggle rendered only on password fields
         suffixIcon: widget.obscureText
             ? IconButton(
                 icon: Icon(
                   _obscured
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
-                  color: _T.txtSec,
-                  size: 20,
+                  color: AppColors.textMuted,
+                  size:  20,
                 ),
                 onPressed: () => setState(() => _obscured = !_obscured),
               )
             : null,
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(_T.rField),
-          borderSide: const BorderSide(color: _T.border),
+          borderRadius: AppRadius.inputBR,
+          borderSide:   const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(_T.rField),
-          borderSide: const BorderSide(color: _T.primary, width: 1.5),
+          borderRadius: AppRadius.inputBR,
+          borderSide:   BorderSide(color: AppColors.borderFocused, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(_T.rField),
-          borderSide: const BorderSide(color: _T.err),
+          borderRadius: AppRadius.inputBR,
+          borderSide:   const BorderSide(color: AppColors.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(_T.rField),
-          borderSide: const BorderSide(color: _T.err, width: 1.5),
+          borderRadius: AppRadius.inputBR,
+          borderSide:   const BorderSide(color: AppColors.error, width: 1.5),
         ),
-        errorStyle: GoogleFonts.poppins(
-          color: _T.err,
-          fontSize: 12,
-          fontWeight: FontWeight.w300,
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-            horizontal: _T.md, vertical: 14),
+        errorStyle:     AppTypography.helper.copyWith(color: AppColors.error),
+        contentPadding: AppSpacing.inputPadding,
       ),
     );
   }
 }
 
-// ── WellPathButton ────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// WellPathButton
+// ─────────────────────────────────────────────────────────────────────────────
 
 class WellPathButton extends StatefulWidget {
-  final String label;
+  final String        label;
   final VoidCallback? onPressed;
-  final bool isLoading;
-  final double height;
+  final bool          isLoading;
+  final double        height;
 
   const WellPathButton({
     super.key,
     required this.label,
     required this.onPressed,
     this.isLoading = false,
-    this.height = 50,
+    this.height    = 50,
   });
 
   @override
@@ -206,39 +203,29 @@ class _WellPathButtonState extends State<WellPathButton> {
       child: GestureDetector(
         onTap: widget.isLoading ? null : widget.onPressed,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          height: widget.height,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: _hovered
-                  ? [_T.primaryL, _T.primary]
-                  : [_T.primary,  _T.primaryD],
-            ),
-            borderRadius: BorderRadius.circular(_T.rButton),
-            boxShadow: [
-              BoxShadow(
-                color: _T.primary.withAlpha(_hovered ? 100 : 50),
-                blurRadius: _hovered ? 24 : 12,
-                spreadRadius: _hovered ? 2 : 0,
-              ),
-            ],
-          ),
+          duration:  AppDurations.fast,
+          height:    widget.height,
           alignment: Alignment.center,
+          decoration: BoxDecoration(
+            // AppGradients encodes the hue-shift trick from the color engine
+            gradient:     _hovered ? AppGradients.buttonHover : AppGradients.button,
+            borderRadius: AppRadius.pillBR,
+            boxShadow:    _hovered ? AppShadows.buttonGlowHover : AppShadows.buttonGlow,
+          ),
           child: widget.isLoading
-              ? const SizedBox(
-                  width: 22,
+              ? SizedBox(
+                  width:  22,
                   height: 22,
                   child: CircularProgressIndicator(
-                      color: Colors.white, strokeWidth: 2.5),
+                    color:       AppColors.onPrimary,
+                    strokeWidth: 2.5,
+                  ),
                 )
               : Text(
                   widget.label,
-                  style: GoogleFonts.poppins(
-                    color: _hovered ? const Color(0xFF001A0A) : Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.4,
-                  ),
+                  // AppTypography.button sets color: AppColors.onPrimary
+                  // which is WCAG-computed — always readable on brand gradient
+                  style: AppTypography.button,
                 ),
         ),
       ),
@@ -246,7 +233,9 @@ class _WellPathButtonState extends State<WellPathButton> {
   }
 }
 
-// ── WellPathDivider ───────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// WellPathDivider
+// ─────────────────────────────────────────────────────────────────────────────
 
 class WellPathDivider extends StatelessWidget {
   final String label;
@@ -256,19 +245,12 @@ class WellPathDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Expanded(child: Divider(color: _T.border, thickness: 1)),
+        const Expanded(child: Divider(color: AppColors.border, thickness: 1)),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: _T.sm),
-          child: Text(
-            label,
-            style: GoogleFonts.poppins(
-              color: _T.txtSec,
-              fontSize: 12,
-              fontWeight: FontWeight.w300,
-            ),
-          ),
+          padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          child: Text(label, style: AppTypography.helper),
         ),
-        const Expanded(child: Divider(color: _T.border, thickness: 1)),
+        const Expanded(child: Divider(color: AppColors.border, thickness: 1)),
       ],
     );
   }

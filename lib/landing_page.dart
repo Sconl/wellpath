@@ -20,7 +20,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'core/theme/theme.dart';
+import 'core/theme/app_theme.dart';
 import 'core/theme/app_background.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -55,7 +55,7 @@ const String kProgressLabel  = 'Overall Sprint Progress';
 
 // ── Assets ────────────────────────────────────────────────────────────────────
 const String kHeaderGifPath =
-    'assets/animated-gifs/20260312_asset_animated_text_wellpath_landing_page_header_1.0.0.gif';
+    'animated-gifs/20260312_asset_animated_text_wellpath_landing_page_header_v1.0.0.gif';
 
 // ── Navigation items ──────────────────────────────────────────────────────────
 const List<(String label, String route)> kNavItems = [
@@ -1062,7 +1062,7 @@ class _PhaseModal extends StatelessWidget {
                   AppSpacing.md,
                   AppSpacing.md,
                 ),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   border: Border(bottom: BorderSide(color: AppColors.border)),
                 ),
                 child: Row(
@@ -1118,7 +1118,7 @@ class _PhaseModal extends StatelessWidget {
                     ),
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: Icon(Icons.close, color: AppColors.textMuted, size: 20),
+                      icon: const Icon(Icons.close, color: AppColors.textMuted, size: 20),
                     ),
                   ],
                 ),

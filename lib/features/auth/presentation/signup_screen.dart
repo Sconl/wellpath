@@ -1,35 +1,49 @@
 // lib/features/auth/presentation/signup_screen.dart
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// SignupScreen — Feature 0 (Week 2)
-//
-// Layout:
-//   • Wide screens (≥ 840 px): two-column split
-//       Left  — illustrated GIF panel (signup_digital_screen_female.gif)
-//       Right — form panel
-//   • Narrow screens (<  840 px): single-column, form only
-//
-// Background: WellPathBackground (animated gradient + particles).
-// Form state:  Riverpod ConsumerStatefulWidget.
-// Navigation:  GoRouter — success → '/home', link → '/login'.
-//
-// GIF asset:
-//   assets/animated-gifs/signup_digital_screen_female.gif
-//   (declare in pubspec.yaml under flutter › assets)
+// CHANGELOG
+// ─────────────────────────────────────────────────────────────────────────────
+//   v1.2.0 — AppTextStyles.authSubheading fix. Import paths corrected.
+//   v1.3.0 — Generic catch block now surfaces the REAL error in the UI
+//            during development (not just in the console). This makes the
+//            "something went wrong" mystery self-diagnosing — you see the
+//            actual exception message directly on screen.
+//            Search for kDevMode to remove this before production.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuthException;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-import '../../../core/widgets/wellpath_background.dart';
-import '../auth_providers.dart';                        // authRepositoryProvider
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_background.dart';
+import '../providers/auth_providers.dart';
 import 'widgets/auth_widgets.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Screen
+// CONFIG BLOCK
+// ─────────────────────────────────────────────────────────────────────────────
+
+const double kSignupBreakpoint    = 840.0;
+const int    kSignupFlexForm      = 4;
+const int    kSignupFlexImage     = 5;
+const double kSignupFormMaxWidth  = 420.0;
+const double kSignupFormPaddingH  = 36.0;
+const double kSignupFormPaddingV  = 40.0;
+const double kSignupLogoSize      = 36.0;
+const double kSignupSubtitleSize  = 14.0;
+const String kSignupGifPath =
+    'animated-gifs/signup_digital_screen_female.gif';
+const double kSignupImagePaddingH = 48.0;
+
+// Set to false before shipping to production.
+// While true, the real exception message is shown in the error banner
+// so you don't have to hunt through the console to diagnose failures.
+const bool kDevMode = true;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// END CONFIG BLOCK
 // ─────────────────────────────────────────────────────────────────────────────
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -40,22 +54,20 @@ class SignupScreen extends ConsumerStatefulWidget {
 }
 
 class _SignupScreenState extends ConsumerState<SignupScreen> {
-  // ── Form ──────────────────────────────────────────────────────────────────
-  final _formKey               = GlobalKey<FormState>();
-  final _nameController        = TextEditingController();
-  final _emailController       = TextEditingController();
-  final _passwordController    = TextEditingController();
-  final _confirmPasswordCtrl   = TextEditingController();
 
-  // ── UI State ──────────────────────────────────────────────────────────────
+  final _formKey             = GlobalKey<FormState>();
+  final _nameController      = TextEditingController();
+  final _emailController     = TextEditingController();
+  final _passwordController  = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
+
   bool    _isLoading    = false;
   String? _errorMessage;
 
-  // ── Focus nodes for keyboard-next traversal ────────────────────────────────
-  final _nameFocus    = FocusNode();
-  final _emailFocus   = FocusNode();
-  final _pwFocus      = FocusNode();
-  final _cpwFocus     = FocusNode();
+  final _nameFocus  = FocusNode();
+  final _emailFocus = FocusNode();
+  final _pwFocus    = FocusNode();
+  final _cpwFocus   = FocusNode();
 
   @override
   void dispose() {
@@ -70,15 +82,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     super.dispose();
   }
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isLoading    = true;
-      _errorMessage = null;
-    });
+    setState(() { _isLoading = true; _errorMessage = null; });
 
     try {
       await ref.read(authRepositoryProvider).signUp(
@@ -86,88 +92,90 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         password:    _passwordController.text,
         displayName: _nameController.text.trim(),
       );
-      if (mounted) context.go('/home');
+      // No context.go() — GoRouter authStateProvider redirect handles navigation.
     } on FirebaseAuthException catch (e) {
-      setState(() => _errorMessage = _mapError(e.code));
-    } catch (_) {
-      setState(() => _errorMessage = 'Something went wrong. Please try again.');
+      setState(() => _errorMessage = _mapFirebaseError(e.code));
+    } catch (e, stack) {
+      // In dev mode: show the real error on screen so you can diagnose without
+      // needing to find it in the console. Remove kDevMode before production.
+      debugPrint('[SignupScreen] non-Firebase error: $e');
+      debugPrint('$stack');
+      setState(() => _errorMessage = kDevMode
+          ? 'DEBUG: $e'
+          : 'Something went wrong. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  String _mapError(String code) {
+  String _mapFirebaseError(String code) {
     switch (code) {
-      case 'email-already-in-use':
-        return 'An account with this email already exists. Try logging in.';
-      case 'weak-password':
-        return 'Password must be at least 8 characters.';
-      case 'invalid-email':
-        return 'Please enter a valid email address.';
-      case 'network-request-failed':
-        return 'Connection error. Check your internet and try again.';
-      default:
-        return 'Something went wrong. Please try again.';
+      case 'email-already-in-use':   return 'An account with this email already exists. Try logging in.';
+      case 'weak-password':          return 'Password must be at least 8 characters.';
+      case 'invalid-email':          return 'Please enter a valid email address.';
+      case 'network-request-failed': return 'Connection error. Check your internet and try again.';
+      default:                       return 'Firebase error: $code';
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isTwoColumn = screenWidth >= 840;
+    final isTwoColumn =
+        MediaQuery.of(context).size.width >= kSignupBreakpoint;
 
     return Scaffold(
-      body: WellPathBackground(
+      body: AppBackground(
+        type:          BackgroundType.meshParticle,
+        particleStyle: ParticleStyle.drift,
+        gradientStyle: GradientStyle.pulse,
         child: SafeArea(
           child: isTwoColumn
-              ? _TwoColumnLayout(formPanel: _formPanel())
+              ? _TwoColumnLayout(
+                  formPanel:  _formPanel(),
+                  imagePanel: const _ImagePanel(assetPath: kSignupGifPath),
+                )
               : _SingleColumnLayout(formPanel: _formPanel()),
         ),
       ),
     );
   }
 
-  // ── Form panel (shared between both layouts) ───────────────────────────────
-
   Widget _formPanel() {
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
+        constraints: const BoxConstraints(maxWidth: kSignupFormMaxWidth),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 48),
+          padding: const EdgeInsets.symmetric(
+            horizontal: kSignupFormPaddingH,
+            vertical:   kSignupFormPaddingV,
+          ),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // ── Brand ────────────────────────────────────────────────
-                const WellPathLogo(fontSize: 36),
-                const SizedBox(height: 6),
+
+                const WellPathLogo(fontSize: kSignupLogoSize),
+                SizedBox(height: AppSpacing.xs + 2),
                 Text(
                   'Create your account',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    color: Colors.white54,
-                    fontSize: 14,
+                  style: AppTextStyles.authSubheading.copyWith(
+                    fontSize:   kSignupSubtitleSize,
                     fontWeight: FontWeight.w300,
                   ),
                 ),
-                const SizedBox(height: 36),
+                SizedBox(height: AppSpacing.xl),
 
-                // ── Display Name ─────────────────────────────────────────
                 WellPathField(
                   controller:        _nameController,
                   label:             'Display Name',
                   focusNode:         _nameFocus,
                   textInputAction:   TextInputAction.next,
+                  autofocus:         true,
                   onEditingComplete: () => _emailFocus.requestFocus(),
-                  prefixIcon: const Icon(
-                    Icons.person_outline,
-                    color: Colors.white38,
-                    size: 20,
-                  ),
+                  prefixIcon: const Icon(Icons.person_outline,
+                      color: AppColors.textMuted, size: 20),
                   validator: (v) {
                     if (v == null || v.trim().length < 2) {
                       return 'Name must be at least 2 characters';
@@ -178,9 +186,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: AppSpacing.md),
 
-                // ── Email ────────────────────────────────────────────────
                 WellPathField(
                   controller:        _emailController,
                   label:             'Email',
@@ -188,23 +195,18 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   keyboardType:      TextInputType.emailAddress,
                   textInputAction:   TextInputAction.next,
                   onEditingComplete: () => _pwFocus.requestFocus(),
-                  prefixIcon: const Icon(
-                    Icons.email_outlined,
-                    color: Colors.white38,
-                    size: 20,
-                  ),
+                  prefixIcon: const Icon(Icons.email_outlined,
+                      color: AppColors.textMuted, size: 20),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'Email is required';
-                    final emailReg = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-                    if (!emailReg.hasMatch(v.trim())) {
+                    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim())) {
                       return 'Enter a valid email address';
                     }
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: AppSpacing.md),
 
-                // ── Password ─────────────────────────────────────────────
                 WellPathField(
                   controller:        _passwordController,
                   label:             'Password',
@@ -212,11 +214,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   focusNode:         _pwFocus,
                   textInputAction:   TextInputAction.next,
                   onEditingComplete: () => _cpwFocus.requestFocus(),
-                  prefixIcon: const Icon(
-                    Icons.lock_outline,
-                    color: Colors.white38,
-                    size: 20,
-                  ),
+                  prefixIcon: const Icon(Icons.lock_outline,
+                      color: AppColors.textMuted, size: 20),
                   validator: (v) {
                     if (v == null || v.length < 8) {
                       return 'Password must be at least 8 characters';
@@ -224,9 +223,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: AppSpacing.md),
 
-                // ── Confirm Password ─────────────────────────────────────
                 WellPathField(
                   controller:        _confirmPasswordCtrl,
                   label:             'Confirm Password',
@@ -234,11 +232,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   focusNode:         _cpwFocus,
                   textInputAction:   TextInputAction.done,
                   onEditingComplete: _submit,
-                  prefixIcon: const Icon(
-                    Icons.lock_outline,
-                    color: Colors.white38,
-                    size: 20,
-                  ),
+                  prefixIcon: const Icon(Icons.lock_outline,
+                      color: AppColors.textMuted, size: 20),
                   validator: (v) {
                     if (v != _passwordController.text) {
                       return 'Passwords do not match';
@@ -246,76 +241,66 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: AppSpacing.md + AppSpacing.xs),
 
-                // ── Inline error ─────────────────────────────────────────
                 if (_errorMessage != null) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.redAccent.withAlpha(20),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                          color: Colors.redAccent.withAlpha(60)),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm + 6,
+                      vertical:   AppSpacing.sm + 2,
                     ),
+                    decoration: AppDecorations.errorBanner,
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.error_outline,
-                            color: Colors.redAccent, size: 16),
-                        const SizedBox(width: 8),
+                        const Padding(
+                          padding: EdgeInsets.only(top: 1),
+                          child: Icon(Icons.error_outline,
+                              color: AppColors.error, size: 16),
+                        ),
+                        SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Text(
                             _errorMessage!,
-                            style: GoogleFonts.poppins(
-                              color: Colors.redAccent,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w300,
-                            ),
+                            style: AppTypography.helper
+                                .copyWith(color: AppColors.error),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  SizedBox(height: AppSpacing.sm + 4),
                 ],
 
-                // ── CTA ──────────────────────────────────────────────────
                 WellPathButton(
                   label:     'Create Account',
                   isLoading: _isLoading,
-                  onPressed: _submit,
+                  onPressed: _isLoading ? null : _submit,
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: AppSpacing.md + AppSpacing.xs),
 
-                // ── Navigate to Login ────────────────────────────────────
                 Center(
                   child: TextButton(
                     onPressed: () => context.go('/login'),
                     child: RichText(
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: 'Already have an account? ',
-                            style: GoogleFonts.poppins(
-                              color: Colors.white54,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w300,
-                            ),
+                      text: TextSpan(children: [
+                        TextSpan(
+                          text:  'Already have an account? ',
+                          style: AppTextStyles.authSubheading.copyWith(fontSize: 13),
+                        ),
+                        TextSpan(
+                          text: 'Log in',
+                          style: AppTextStyles.authSubheading.copyWith(
+                            fontSize:   13,
+                            color:      AppColors.primary,
+                            fontWeight: FontWeight.w600,
                           ),
-                          TextSpan(
-                            text: 'Log in',
-                            style: GoogleFonts.poppins(
-                              color: const Color(0xFF00CC66),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ]),
                     ),
                   ),
                 ),
+
               ],
             ),
           ),
@@ -329,114 +314,50 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 // Layout helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Desktop two-column: illustrated left panel + form right panel.
 class _TwoColumnLayout extends StatelessWidget {
   final Widget formPanel;
-
-  const _TwoColumnLayout({required this.formPanel});
+  final Widget imagePanel;
+  const _TwoColumnLayout({required this.formPanel, required this.imagePanel});
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        // ── Left: illustration panel ───────────────────────────────────
-        Expanded(
-          flex: 5,
-          child: Container(
-            decoration: const BoxDecoration(
-              border: Border(
-                right: BorderSide(color: Color(0x22FFFFFF)),
-              ),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // GIF illustration
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Image.asset(
-                      'assets/animated-gifs/signup_digital_screen_female.gif',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                // Tagline
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 48),
-                  child: Text(
-                    'Join WellPath and start your\nfitness journey today.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      color: Colors.white70,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w300,
-                      height: 1.6,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Feature pills
-                const Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    _FeaturePill('🏋️ Discover Trainers'),
-                    _FeaturePill('📅 Book Sessions'),
-                    _FeaturePill('💧 Track Wellness'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        // ── Right: form panel ──────────────────────────────────────────
-        Expanded(
-          flex: 4,
-          child: formPanel,
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Row(children: [
+    Expanded(flex: kSignupFlexForm,  child: formPanel),
+    Expanded(flex: kSignupFlexImage, child: imagePanel),
+  ]);
 }
 
-/// Mobile single-column: form panel only.
 class _SingleColumnLayout extends StatelessWidget {
   final Widget formPanel;
-
   const _SingleColumnLayout({required this.formPanel});
 
   @override
-  Widget build(BuildContext context) {
-    return formPanel;
-  }
+  Widget build(BuildContext context) => formPanel;
 }
 
-// Small decorative pill for the illustration panel
-class _FeaturePill extends StatelessWidget {
-  final String label;
-
-  const _FeaturePill(this.label);
+class _ImagePanel extends StatelessWidget {
+  final String assetPath;
+  const _ImagePanel({required this.assetPath});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF00CC66).withAlpha(20),
-        borderRadius: BorderRadius.circular(50),
-        border: Border.all(color: const Color(0xFF00CC66).withAlpha(60)),
+        border: Border(left: BorderSide(color: AppColors.border)),
       ),
-      child: Text(
-        label,
-        style: GoogleFonts.poppins(
-          color: const Color(0xFF00CC66),
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: kSignupImagePaddingH),
+          child: ClipRRect(
+            borderRadius: AppRadius.cardBR,
+            child: Image.asset(
+              assetPath,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Center(
+                child: Icon(Icons.image_not_supported_outlined,
+                    color: AppColors.textMuted, size: 48),
+              ),
+            ),
+          ),
         ),
       ),
     );

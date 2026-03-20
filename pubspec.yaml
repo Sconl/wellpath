@@ -47,9 +47,5 @@ flutter:
   uses-material-design: true
 
   assets:
-    # Animated GIFs used by signup_screen.dart and login_screen.dart
-    - assets/animated-gifs/
-
-    # Add other asset directories below as the project grows:
-    # - assets/images/
-    # - assets/icons/
+    - assets/
+  #  - assets/animated-gifs/

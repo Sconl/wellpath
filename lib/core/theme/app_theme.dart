@@ -1,4 +1,4 @@
-// lib/core/theme/theme.dart
+// lib/core/theme/app_theme.dart
 
 // log_20260312_theme.dart : I have templatized the theme logic to save some time on future projects. This file is meant to be copy-pasted wholesale into new projects and then configured by changing the constants in the CONFIG BLOCK below. The engine will take care of generating a full palette of colors, gradients, shadows, and text colors that all harmonize together and meet accessibility standards — all derived from three simple brand seed colors.
 
@@ -970,7 +970,7 @@ class AppTheme {
         margin:    EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: AppRadius.cardBR,
-          side: BorderSide(color: AppColors.border),
+          side: const BorderSide(color: AppColors.border),
         ),
       ),
 
@@ -1029,11 +1029,11 @@ class AppTheme {
         suffixIconColor:     AppColors.textMuted,
         border: OutlineInputBorder(
           borderRadius: AppRadius.inputBR,
-          borderSide:   BorderSide(color: AppColors.border),
+          borderSide:   const BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: AppRadius.inputBR,
-          borderSide:   BorderSide(color: AppColors.border),
+          borderSide:   const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: AppRadius.inputBR,
@@ -1060,7 +1060,7 @@ class AppTheme {
         padding: AppSpacing.chipPadding,
       ),
 
-      dividerTheme: DividerThemeData(
+      dividerTheme: const DividerThemeData(
         color:     AppColors.border,
         thickness: 1,
         space:     0,
@@ -1114,7 +1114,7 @@ class AppTheme {
           s.contains(WidgetState.selected) ? AppColors.primary : Colors.transparent,
         ),
         checkColor: WidgetStateProperty.all(AppColors.onPrimary),
-        side: BorderSide(color: AppColors.border, width: 1.5),
+        side: const BorderSide(color: AppColors.border, width: 1.5),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
@@ -1145,7 +1145,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: AppRadius.cardBR),
       ),
 
-      iconTheme: IconThemeData(
+      iconTheme: const IconThemeData(
         color: AppColors.textSecondary,
         size:  22,
       ),
