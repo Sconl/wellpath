@@ -28,6 +28,12 @@ dependencies:
   firebase_analytics: ^10.8.9     # Analytics events (Week 8)
   firebase_crashlytics: ^3.4.19   # Crash reporting (Week 8)
   firebase_performance: ^0.9.3+19 # Performance monitoring (Week 8)
+  google_maps_flutter: ^2.7.0
+  geolocator: ^12.0.0
+  http: ^1.2.0
+  url_launcher: ^6.3.0
+  flutter_map: ^6.0.0
+  latlong2: ^0.9.0
 
   # ── State management ──────────────────────────────────────────────────────
   flutter_riverpod: ^2.5.1        # FIX: was missing → caused uri_does_not_exist
@@ -38,6 +44,10 @@ dependencies:
   # ── UI / Typography ───────────────────────────────────────────────────────
   google_fonts: ^6.2.1            # Poppins — already used in landing_page.dart
 
+  google_generative_ai: ^0.4.6
+  mapbox_maps_flutter: ^2.0.0
+
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -48,4 +58,5 @@ flutter:
 
   assets:
     - assets/
-  #  - assets/animated-gifs/
+    - assets/gifs/
+    - assets/logos/

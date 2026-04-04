@@ -3,24 +3,49 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // CHANGELOG
 // ─────────────────────────────────────────────────────────────────────────────
-//   • Replaced inline ThemeData with AppTheme.dark / AppTheme.light — Sconl Peter
-//   • Added themeMode: ThemeMode.dark as the WellPath default
-//   • Cleaned up app title string
+//   • Integrated Mapbox initialization (access token setup)
+//   • Added Web-safe guard for Mapbox (prevents crash on Flutter Web)
+//   • Preserved Firebase initialization
+//   • Maintained Riverpod ProviderScope
+//   • Retained AppTheme (dark-first design)
+//   • Connected Discover providers (Mapbox dependency)
+//   • Cleaned and unified app bootstrap flow — Sconl Peter
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // ← IMPORTANT (kIsWeb)
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import 'firebase_options.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/discover/providers/discover_providers.dart';
+
+// TODO: Move this to secure storage (env/secrets)
+const String kMapboxAccessToken = 'YOUR_MAPBOX_ACCESS_TOKEN';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Initialize Firebase
+  // ───────────────────────────────────────────────────────────────────────────
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Initialize Mapbox (ONLY for mobile platforms)
+  // ───────────────────────────────────────────────────────────────────────────
+  if (!kIsWeb) {
+    MapboxOptions.setAccessToken(kMapboxAccessToken);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Launch App with Riverpod
+  // ───────────────────────────────────────────────────────────────────────────
   runApp(const ProviderScope(child: WellPathApp()));
 }
 
@@ -35,13 +60,16 @@ class WellPathApp extends ConsumerWidget {
       title: 'WellPath',
       debugShowCheckedModeBanner: false,
 
-      // Dark is the WellPath default — the whole brand is built around it.
-      // ThemeMode.system will respect the user's OS preference if you ever
-      // want to offer that toggle in settings.
-      theme:      AppTheme.light,
-      darkTheme:  AppTheme.dark,
-      themeMode:  ThemeMode.dark,
+      // ───────────────────────────────────────────────────────────────────────
+      // Theme Configuration (Dark-first brand identity)
+      // ───────────────────────────────────────────────────────────────────────
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.dark,
 
+      // ───────────────────────────────────────────────────────────────────────
+      // Navigation (GoRouter / AppRouter)
+      // ───────────────────────────────────────────────────────────────────────
       routerConfig: router,
     );
   }

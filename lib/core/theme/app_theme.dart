@@ -1,8 +1,5 @@
 // lib/core/theme/app_theme.dart
 
-// log_20260312_theme.dart : I have templatized the theme logic to save some time on future projects. This file is meant to be copy-pasted wholesale into new projects and then configured by changing the constants in the CONFIG BLOCK below. The engine will take care of generating a full palette of colors, gradients, shadows, and text colors that all harmonize together and meet accessibility standards — all derived from three simple brand seed colors.
-
-
 // ─────────────────────────────────────────────────────────────────────────────
 // CHANGELOG
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18,15 +15,23 @@
 //   • Replaced all withOpacity() calls with withValues(alpha:) throughout
 //   • saturate() and desaturate() are intentional template utilities — kept
 //     with ignore comments; they exist for future screen colour decisions
+//   • Brand color seeds (_kBrandPrimary/Secondary/Tertiary) moved to
+//     app_branding.dart — this file now reads BrandColors.primary/secondary/tertiary.
+//     The branding team owns the seeds; this file owns the derivation engine.
+//   • Font family (_kFontFamily) moved to app_branding.dart — this file now
+//     reads BrandCopy.fontFamily. Typeface is a brand decision, not a theme one.
+//   • import 'app_branding.dart' added. Dependency direction is now correct:
+//     app_branding (seeds) → app_theme (derivation) → everything else.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // HOW TO USE THIS FILE IN A NEW PROJECT:
 //
-//   1. Find the CONFIG BLOCK below (~line 50).
-//   2. Set _kBrandPrimary, _kBrandSecondary, _kBrandTertiary.
-//   3. Optionally adjust _kFontFamily and the shape/spacing constants.
-//   4. Done. Everything — backgrounds, surfaces, gradients, shadows,
-//      text colors, semantic chips, modals — regenerates automatically.
+//   1. Open app_branding.dart (the file above this one in the dependency chain).
+//   2. Set BrandColors.primary/secondary/tertiary and BrandCopy.fontFamily.
+//   3. Done — everything here regenerates from those inputs automatically.
+//
+//   The only things to configure in THIS file are shape/spacing/depth constants
+//   in the CONFIG BLOCK below. Those are layout and depth decisions, not brand.
 //
 //   Wire into main.dart:
 //     MaterialApp(
@@ -55,40 +60,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'app_branding.dart'; // BrandColors (seeds) + BrandCopy (fontFamily)
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG BLOCK
-// Change these values. Everything else in this file is derived from them.
 // ─────────────────────────────────────────────────────────────────────────────
-
-// ── Brand Seeds ───────────────────────────────────────────────────────────────
-
-const Color _kBrandPrimary   = Color(0xFF00CC66);
-const Color _kBrandSecondary = Color(0xFF0099CC);
-const Color _kBrandTertiary  = Color(0xFFFF8A65);
-
-// ── Typography ────────────────────────────────────────────────────────────────
-
-const String _kFontFamily = 'Poppins';
+//
+// Brand color seeds and font family have moved to app_branding.dart.
+// This CONFIG BLOCK now contains only shape, spacing, and depth constants —
+// layout and visual structure decisions that belong to the design system,
+// not to the brand identity layer.
 
 // ── Spacing ───────────────────────────────────────────────────────────────────
-
 const double _kSpacingBase = 4.0;
 
 // ── Shape ─────────────────────────────────────────────────────────────────────
-
 const double _kRadiusInput = 10.0;
 const double _kRadiusCard  = 14.0;
 const double _kRadiusModal = 20.0;
 const double _kRadiusPill  = 50.0;
 
 // ── Depth / Surface Steps ────────────────────────────────────────────────────
-
+// How far each surface step lifts from the background in lightness.
+// Larger values = more contrast between surface layers.
 const double _kDarkSurfaceStep           = 0.065;
 const double _kLightSurfaceStep          = 0.040;
 const double _kDarkBackgroundSaturation  = 0.22;
 const double _kLightBackgroundSaturation = 0.08;
-const double _kGradientHueShift          = 12.0;
+
+// Gradient hue shift — how far the gradient end-stop rotates on the hue wheel
+// relative to the start. +12° gives buttons a sense of depth and warmth.
+const double _kGradientHueShift = 12.0;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // END CONFIG BLOCK
@@ -115,7 +118,7 @@ abstract class _Engine {
     return h.withLightness((h.lightness - amount).clamp(0.0, 1.0)).toColor();
   }
 
-  // Template utilities — intentionally retained for future screen colour decisions.
+  // Template utilities — retained for future screen colour decisions.
   // ignore: unused_element
   static Color saturate(Color c, double amount) {
     final h = _hsl(c);
@@ -140,8 +143,8 @@ abstract class _Engine {
   // Linear blend between two colors. t=0 returns a, t=1 returns b.
   //
   // Flutter 3.27+ deprecated the int channel accessors (.red/.green/.blue/.alpha).
-  // The new API exposes .r/.g/.b/.a as double (0.0–1.0). We convert to the
-  // 0–255 int range that Color.fromARGB expects by multiplying by 255.
+  // The new API exposes .r/.g/.b/.a as double (0.0–1.0). We multiply by 255
+  // to convert to the int range that Color.fromARGB expects.
   static Color mix(Color a, Color b, double t) {
     int ch(double av, double bv) =>
         ((av + (bv - av) * t) * 255.0).round().clamp(0, 255);
@@ -157,14 +160,12 @@ abstract class _Engine {
   // ── WCAG contrast ─────────────────────────────────────────────────────────
 
   // Flutter 3.27+: .r/.g/.b return double 0.0–1.0. The WCAG linearisation
-  // formula operates on the same 0.0–1.0 range, so we no longer need to
-  // divide by 255 first.
+  // formula operates in the same range — no division by 255 needed.
   static double _luminance(Color c) {
-    double lin(double s) {
-      return s <= 0.04045
-          ? s / 12.92
-          : math.pow((s + 0.055) / 1.055, 2.4).toDouble();
-    }
+    double lin(double s) =>
+        s <= 0.04045
+            ? s / 12.92
+            : math.pow((s + 0.055) / 1.055, 2.4).toDouble();
     return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
   }
 
@@ -177,58 +178,61 @@ abstract class _Engine {
   static Color onColor(Color bg) {
     final darkText      = mix(darken(bg, 0.65), const Color(0xFF000000), 0.55);
     final whiteContrast = contrastRatio(const Color(0xFFFFFFFF), bg);
-    // darkContrast removed — we prefer white at 4.5:1 and fall back to the
-    // dark hue-tinted text without needing to compare both paths explicitly.
+    // Prefer white at 4.5:1 and fall back to the dark hue-tinted text.
     return whiteContrast >= 4.5 ? const Color(0xFFFFFFFF) : darkText;
   }
 
   // ── Dark mode background family ───────────────────────────────────────────
+  // All dark surfaces are derived from the primary brand hue — this is what
+  // makes the dark background feel "branded" rather than generic charcoal.
 
   static Color get darkBackground =>
-    fromHSL(_hsl(_kBrandPrimary).hue, _kDarkBackgroundSaturation, 0.050);
+      fromHSL(_hsl(BrandColors.primary).hue, _kDarkBackgroundSaturation, 0.050);
 
   static Color get darkBackgroundAlt =>
-    fromHSL(_hsl(_kBrandPrimary).hue, _kDarkBackgroundSaturation, 0.072);
+      fromHSL(_hsl(BrandColors.primary).hue, _kDarkBackgroundSaturation, 0.072);
 
   static Color get darkSurface =>
-    fromHSL(_hsl(_kBrandPrimary).hue, _kDarkBackgroundSaturation,
-      0.050 + _kDarkSurfaceStep);
+      fromHSL(_hsl(BrandColors.primary).hue, _kDarkBackgroundSaturation,
+          0.050 + _kDarkSurfaceStep);
 
   static Color get darkSurfaceMid =>
-    fromHSL(_hsl(_kBrandPrimary).hue, _kDarkBackgroundSaturation,
-      0.050 + _kDarkSurfaceStep * 2);
+      fromHSL(_hsl(BrandColors.primary).hue, _kDarkBackgroundSaturation,
+          0.050 + _kDarkSurfaceStep * 2);
 
   static Color get darkSurfaceLit =>
-    fromHSL(_hsl(_kBrandPrimary).hue, _kDarkBackgroundSaturation,
-      0.050 + _kDarkSurfaceStep * 3);
+      fromHSL(_hsl(BrandColors.primary).hue, _kDarkBackgroundSaturation,
+          0.050 + _kDarkSurfaceStep * 3);
 
   // ── Accent variants ───────────────────────────────────────────────────────
 
-  static Color get primaryLight => lighten(_kBrandPrimary, 0.15);
-  static Color get primaryDark  => darken(_kBrandPrimary, 0.15);
-  static Color get primaryDeep  => darken(_kBrandPrimary, 0.30);
+  static Color get primaryLight => lighten(BrandColors.primary, 0.15);
+  static Color get primaryDark  => darken(BrandColors.primary, 0.15);
+  static Color get primaryDeep  => darken(BrandColors.primary, 0.30);
 
-  static Color get secondaryLight => lighten(_kBrandSecondary, 0.15);
-  static Color get secondaryDark  => darken(_kBrandSecondary, 0.15);
+  static Color get secondaryLight => lighten(BrandColors.secondary, 0.15);
+  static Color get secondaryDark  => darken(BrandColors.secondary, 0.15);
 
-  static Color get tertiaryLight  => lighten(_kBrandTertiary, 0.15);
-  static Color get tertiaryDark   => darken(_kBrandTertiary, 0.15);
+  static Color get tertiaryLight => lighten(BrandColors.tertiary, 0.15);
+  static Color get tertiaryDark  => darken(BrandColors.tertiary, 0.15);
 
   // ── Light mode background/surface family ──────────────────────────────────
 
   static Color get lightBackground =>
-    fromHSL(_hsl(_kBrandPrimary).hue, _kLightBackgroundSaturation, 0.970);
+      fromHSL(_hsl(BrandColors.primary).hue, _kLightBackgroundSaturation, 0.970);
 
   static Color get lightSurface =>
-    fromHSL(_hsl(_kBrandPrimary).hue, _kLightBackgroundSaturation + 0.04,
-      0.970 - _kLightSurfaceStep);
+      fromHSL(_hsl(BrandColors.primary).hue, _kLightBackgroundSaturation + 0.04,
+          0.970 - _kLightSurfaceStep);
 
   static Color get lightSurfaceMid =>
-    fromHSL(_hsl(_kBrandPrimary).hue, _kLightBackgroundSaturation + 0.07,
-      0.970 - _kLightSurfaceStep * 2);
+      fromHSL(_hsl(BrandColors.primary).hue, _kLightBackgroundSaturation + 0.07,
+          0.970 - _kLightSurfaceStep * 2);
 
   static Color get lightPrimary {
-    Color c = _kBrandPrimary;
+    // Darken the primary until it passes WCAG AA on the light background.
+    // This ensures the primary color is always usable for text on light surfaces.
+    Color c = BrandColors.primary;
     for (int i = 0; i < 30; i++) {
       if (contrastRatio(c, lightBackground) >= 4.5) return c;
       c = darken(c, 0.02);
@@ -237,20 +241,23 @@ abstract class _Engine {
   }
 
   // ── Gradient color lists ───────────────────────────────────────────────────
+  // The hue shift (+12°) on the end stop gives gradients depth and a sense
+  // of warmth at the bottom — the button looks like it has a light source
+  // coming from the top-left corner.
 
   static List<Color> get buttonColors => [
-    _kBrandPrimary,
-    darken(rotateHue(_kBrandPrimary, _kGradientHueShift), 0.12),
+    BrandColors.primary,
+    darken(rotateHue(BrandColors.primary, _kGradientHueShift), 0.12),
   ];
 
   static List<Color> get buttonHoverColors => [
-    lighten(rotateHue(_kBrandPrimary, -_kGradientHueShift * 0.5), 0.12),
-    _kBrandPrimary,
+    lighten(rotateHue(BrandColors.primary, -_kGradientHueShift * 0.5), 0.12),
+    BrandColors.primary,
   ];
 
   static List<Color> get heroColors => [
     primaryLight,
-    _kBrandPrimary,
+    BrandColors.primary,
     darkBackground,
   ];
 
@@ -260,8 +267,8 @@ abstract class _Engine {
   ];
 
   static List<Color> get secondaryButtonColors => [
-    _kBrandSecondary,
-    darken(rotateHue(_kBrandSecondary, _kGradientHueShift), 0.12),
+    BrandColors.secondary,
+    darken(rotateHue(BrandColors.secondary, _kGradientHueShift), 0.12),
   ];
 }
 
@@ -279,16 +286,18 @@ abstract class AppColors {
   static Color get surfaceMid    => _Engine.darkSurfaceMid;
   static Color get surfaceLit    => _Engine.darkSurfaceLit;
 
-  static Color get primary       => _kBrandPrimary;
-  static Color get primaryLight  => _Engine.primaryLight;
-  static Color get primaryDark   => _Engine.primaryDark;
-  static Color get primaryDeep   => _Engine.primaryDeep;
+  // Primary reads directly from BrandColors — the engine's derived variants
+  // are exposed as primaryLight/Dark/Deep for use in gradients and tints.
+  static Color get primary      => BrandColors.primary;
+  static Color get primaryLight => _Engine.primaryLight;
+  static Color get primaryDark  => _Engine.primaryDark;
+  static Color get primaryDeep  => _Engine.primaryDeep;
 
-  static Color get secondary      => _kBrandSecondary;
+  static Color get secondary      => BrandColors.secondary;
   static Color get secondaryLight => _Engine.secondaryLight;
   static Color get secondaryDark  => _Engine.secondaryDark;
 
-  static Color get tertiary      => _kBrandTertiary;
+  static Color get tertiary      => BrandColors.tertiary;
   static Color get tertiaryLight => _Engine.tertiaryLight;
   static Color get tertiaryDark  => _Engine.tertiaryDark;
 
@@ -297,29 +306,36 @@ abstract class AppColors {
   static Color get lightSurfaceMid => _Engine.lightSurfaceMid;
   static Color get lightPrimary    => _Engine.lightPrimary;
 
+  // These are always white variants regardless of brand — they represent
+  // text ON the dark branded background, not the brand color itself.
   static const Color textPrimary   = Color(0xFFFFFFFF);
   static const Color textSecondary = Color(0x8AFFFFFF);
   static const Color textMuted     = Color(0x3DFFFFFF);
   static const Color textHint      = Color(0x61FFFFFF);
 
-  static Color get lightTextPrimary   => _Engine.darken(_kBrandPrimary, 0.62);
+  static Color get lightTextPrimary   => _Engine.darken(BrandColors.primary, 0.62);
   static Color get lightTextSecondary => _Engine.mix(
     lightTextPrimary, const Color(0xFF888888), 0.5,
   );
 
-  static Color get onPrimary   => _Engine.onColor(_kBrandPrimary);
-  static Color get onSecondary => _Engine.onColor(_kBrandSecondary);
-  static Color get onTertiary  => _Engine.onColor(_kBrandTertiary);
+  static Color get onPrimary   => _Engine.onColor(BrandColors.primary);
+  static Color get onSecondary => _Engine.onColor(BrandColors.secondary);
+  static Color get onTertiary  => _Engine.onColor(BrandColors.tertiary);
 
+  // Semantic colors are fixed — they carry universal meaning (green=good,
+  // red=error, amber=warning) and should not shift with the brand color.
   static const Color success = Color(0xFF00E676);
   static const Color warning = Color(0xFFFFB300);
   static const Color error   = Color(0xFFFF5252);
   static const Color info    = Color(0xFF40C4FF);
-  static Color get live => _kBrandTertiary;
+
+  // live uses the tertiary because tertiary is the warm/energetic accent —
+  // the right semantic match for a "live" badge.
+  static Color get live => BrandColors.tertiary;
 
   static const Color border        = Color(0x1FFFFFFF);
   static const Color borderStrong  = Color(0x33FFFFFF);
-  static Color get borderFocused   => _kBrandPrimary;
+  static Color get borderFocused   => BrandColors.primary;
   static const Color borderError   = Color(0xFFFF5252);
 
   static const Color scrim       = Color(0xCC000000);
@@ -442,9 +458,9 @@ abstract class AppDecorations {
   );
 
   static BoxDecoration get secondaryButton => BoxDecoration(
-    gradient:  AppGradients.secondary,
+    gradient:     AppGradients.secondary,
     borderRadius: BorderRadius.circular(_kRadiusPill),
-    boxShadow: AppShadows.secondaryGlow,
+    boxShadow:    AppShadows.secondaryGlow,
   );
 
   static BoxDecoration get outlinedButton => BoxDecoration(
@@ -545,41 +561,41 @@ abstract class AppShadows {
 
   static List<BoxShadow> get card => [
     BoxShadow(
-      color:       AppColors.background.withValues(alpha: 0.55),
-      blurRadius:  20,
-      offset:      const Offset(0, 8),
+      color:      AppColors.background.withValues(alpha: 0.55),
+      blurRadius: 20,
+      offset:     const Offset(0, 8),
     ),
   ];
 
   static List<BoxShadow> get modal => [
     BoxShadow(
-      color:       Colors.black.withValues(alpha: 0.50),
-      blurRadius:  40,
-      offset:      const Offset(0, 16),
+      color:      Colors.black.withValues(alpha: 0.50),
+      blurRadius: 40,
+      offset:     const Offset(0, 16),
     ),
   ];
 
   static List<BoxShadow> get buttonGlow => [
     BoxShadow(
-      color:       AppColors.primaryDeep.withValues(alpha: 0.55),
-      blurRadius:  24,
-      offset:      const Offset(0, 8),
+      color:      AppColors.primaryDeep.withValues(alpha: 0.55),
+      blurRadius: 24,
+      offset:     const Offset(0, 8),
     ),
   ];
 
   static List<BoxShadow> get buttonGlowHover => [
     BoxShadow(
-      color:       AppColors.primaryDeep.withValues(alpha: 0.70),
-      blurRadius:  32,
-      offset:      const Offset(0, 10),
+      color:      AppColors.primaryDeep.withValues(alpha: 0.70),
+      blurRadius: 32,
+      offset:     const Offset(0, 10),
     ),
   ];
 
   static List<BoxShadow> get secondaryGlow => [
     BoxShadow(
-      color:       AppColors.secondaryDark.withValues(alpha: 0.50),
-      blurRadius:  24,
-      offset:      const Offset(0, 8),
+      color:      AppColors.secondaryDark.withValues(alpha: 0.50),
+      blurRadius: 24,
+      offset:     const Offset(0, 8),
     ),
   ];
 
@@ -593,9 +609,9 @@ abstract class AppShadows {
 
   static List<BoxShadow> get successGlow => [
     BoxShadow(
-      color:       AppColors.success.withValues(alpha: 0.28),
-      blurRadius:  16,
-      offset:      const Offset(0, 4),
+      color:      AppColors.success.withValues(alpha: 0.28),
+      blurRadius: 16,
+      offset:     const Offset(0, 4),
     ),
   ];
 }
@@ -606,9 +622,9 @@ abstract class AppShadows {
 // ─────────────────────────────────────────────────────────────────────────────
 
 abstract class AppDurations {
-  static const Duration fast   = Duration(milliseconds: 150);
-  static const Duration normal = Duration(milliseconds: 280);
-  static const Duration slow   = Duration(milliseconds: 420);
+  static const Duration fast    = Duration(milliseconds: 150);
+  static const Duration normal  = Duration(milliseconds: 280);
+  static const Duration slow    = Duration(milliseconds: 420);
   static const Duration stagger = Duration(milliseconds: 60);
 }
 
@@ -616,9 +632,16 @@ abstract class AppDurations {
 // ─────────────────────────────────────────────────────────────────────────────
 // APP TYPOGRAPHY
 // ─────────────────────────────────────────────────────────────────────────────
+//
+// BrandCopy.fontFamily is the single source for the font name. App_theme.dart
+// has no hardcoded font name — if the branding team changes the typeface in
+// app_branding.dart, AppTypography regenerates automatically.
 
 abstract class AppTypography {
 
+  // brandBold / brandLight match BrandLogo's rendering but go through
+  // AppTypography for screen contexts where BrandLogo isn't appropriate
+  // (e.g., a large-format RichText that mixes logo text with body copy).
   static TextStyle get brandBold  => _f(FontWeight.w700, 36, ls: -1.5);
   static TextStyle get brandLight => _f(FontWeight.w300, 36, ls: -1.5,
     color: AppColors.textSecondary);
@@ -634,9 +657,9 @@ abstract class AppTypography {
   static TextStyle get bodySmall => _f(FontWeight.w300, 13, h: 1.5,
     color: AppColors.textSecondary);
 
-  static TextStyle get button     => _f(FontWeight.w700, 15, ls: 0.3,
+  static TextStyle get button   => _f(FontWeight.w700, 15, ls: 0.3,
     color: AppColors.onPrimary);
-  static TextStyle get buttonSm   => _f(FontWeight.w700, 13, ls: 0.3,
+  static TextStyle get buttonSm => _f(FontWeight.w700, 13, ls: 0.3,
     color: AppColors.onPrimary);
   static TextStyle get input      => _f(FontWeight.w400, 14);
   static TextStyle get inputLabel => _f(FontWeight.w300, 13,
@@ -652,20 +675,23 @@ abstract class AppTypography {
     color: AppColors.primary);
   static TextStyle get badge    => _f(FontWeight.w700, 9, ls: 0.5);
 
+  // All typography reads the font from BrandCopy.fontFamily — the branding
+  // team changing the font in app_branding.dart regenerates every text style.
   static TextStyle _f(
     FontWeight w,
     double size, {
     double? ls,
     double? h,
     Color? color,
-  }) => GoogleFonts.getFont(
-    _kFontFamily,
-    fontWeight:    w,
-    fontSize:      size,
-    letterSpacing: ls,
-    height:        h,
-    color:         color ?? AppColors.textPrimary,
-  );
+  }) =>
+      GoogleFonts.getFont(
+        BrandCopy.fontFamily,
+        fontWeight:    w,
+        fontSize:      size,
+        letterSpacing: ls,
+        height:        h,
+        color:         color ?? AppColors.textPrimary,
+      );
 }
 
 
@@ -732,13 +758,13 @@ class AppTheme {
         indicatorColor:  AppColors.tint20(AppColors.primary),
         iconTheme: WidgetStateProperty.resolveWith((s) => IconThemeData(
           color: s.contains(WidgetState.selected)
-            ? AppColors.primary
-            : AppColors.textMuted,
+              ? AppColors.primary
+              : AppColors.textMuted,
         )),
         labelTextStyle: WidgetStateProperty.resolveWith((s) =>
           s.contains(WidgetState.selected)
-            ? AppTypography.chip.copyWith(color: AppColors.primary)
-            : AppTypography.caption,
+              ? AppTypography.chip.copyWith(color: AppColors.primary)
+              : AppTypography.caption,
         ),
       ),
 
@@ -793,16 +819,16 @@ class AppTheme {
       ),
 
       inputDecorationTheme: InputDecorationTheme(
-        filled:              true,
-        fillColor:           AppColors.surface,
-        contentPadding:      AppSpacing.inputPadding,
-        labelStyle:          AppTypography.inputLabel,
-        floatingLabelStyle:  AppTypography.inputLabel.copyWith(color: AppColors.primary),
-        hintStyle:           AppTypography.input.copyWith(color: AppColors.textHint),
-        errorStyle:          AppTypography.helper.copyWith(color: AppColors.error),
-        helperStyle:         AppTypography.helper,
-        prefixIconColor:     AppColors.textMuted,
-        suffixIconColor:     AppColors.textMuted,
+        filled:             true,
+        fillColor:          AppColors.surface,
+        contentPadding:     AppSpacing.inputPadding,
+        labelStyle:         AppTypography.inputLabel,
+        floatingLabelStyle: AppTypography.inputLabel.copyWith(color: AppColors.primary),
+        hintStyle:          AppTypography.input.copyWith(color: AppColors.textHint),
+        errorStyle:         AppTypography.helper.copyWith(color: AppColors.error),
+        helperStyle:        AppTypography.helper,
+        prefixIconColor:    AppColors.textMuted,
+        suffixIconColor:    AppColors.textMuted,
         border: OutlineInputBorder(
           borderRadius: AppRadius.inputBR,
           borderSide:   const BorderSide(color: AppColors.border),
@@ -880,8 +906,8 @@ class AppTheme {
         ),
         trackColor: WidgetStateProperty.resolveWith((s) =>
           s.contains(WidgetState.selected)
-            ? AppColors.tint20(AppColors.primary)
-            : AppColors.surface,
+              ? AppColors.tint20(AppColors.primary)
+              : AppColors.surface,
         ),
       ),
 
@@ -903,11 +929,11 @@ class AppTheme {
       ),
 
       sliderTheme: SliderThemeData(
-        activeTrackColor:       AppColors.primary,
-        inactiveTrackColor:     AppColors.surface,
-        thumbColor:             AppColors.primary,
-        overlayColor:           AppColors.tint10(AppColors.primary),
-        valueIndicatorColor:    AppColors.primary,
+        activeTrackColor:        AppColors.primary,
+        inactiveTrackColor:      AppColors.surface,
+        thumbColor:              AppColors.primary,
+        overlayColor:            AppColors.tint10(AppColors.primary),
+        valueIndicatorColor:     AppColors.primary,
         valueIndicatorTextStyle: AppTypography.badge.copyWith(color: AppColors.onPrimary),
       ),
 
@@ -953,7 +979,9 @@ class AppTheme {
         todayBorder:           BorderSide(color: AppColors.primary),
         todayForegroundColor:  WidgetStateProperty.all(AppColors.primary),
         dayForegroundColor: WidgetStateProperty.resolveWith((s) =>
-          s.contains(WidgetState.selected) ? AppColors.onPrimary : AppColors.textPrimary,
+          s.contains(WidgetState.selected)
+              ? AppColors.onPrimary
+              : AppColors.textPrimary,
         ),
         dayBackgroundColor: WidgetStateProperty.resolveWith((s) =>
           s.contains(WidgetState.selected) ? AppColors.primary : Colors.transparent,
@@ -965,8 +993,8 @@ class AppTheme {
         backgroundColor: AppColors.surfaceMid,
         hourMinuteColor: WidgetStateColor.resolveWith((s) =>
           s.contains(WidgetState.selected)
-            ? AppColors.tint20(AppColors.primary)
-            : AppColors.surface,
+              ? AppColors.tint20(AppColors.primary)
+              : AppColors.surface,
         ),
         hourMinuteTextColor: WidgetStateColor.resolveWith((s) =>
           s.contains(WidgetState.selected) ? AppColors.primary : AppColors.textPrimary,
@@ -976,8 +1004,9 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: AppRadius.modalBR),
       ),
 
+      // BrandCopy.fontFamily drives the text theme — same source as AppTypography.
       textTheme: GoogleFonts.getTextTheme(
-        _kFontFamily,
+        BrandCopy.fontFamily,
         ThemeData.dark().textTheme,
       ).copyWith(
         displayLarge:   AppTypography.h1.copyWith(fontSize: 32),
@@ -1112,7 +1141,7 @@ class AppTheme {
       ),
 
       textTheme: GoogleFonts.getTextTheme(
-        _kFontFamily,
+        BrandCopy.fontFamily,
         ThemeData.light().textTheme,
       ).copyWith(
         displayLarge:   AppTypography.h1.copyWith(fontSize: 32, color: AppColors.lightTextPrimary),

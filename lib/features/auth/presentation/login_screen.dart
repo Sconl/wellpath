@@ -347,12 +347,12 @@ class _ImagePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         border: Border(left: BorderSide(color: AppColors.border)),
       ),
       child: Center(
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: kLoginImagePaddingH),
+          padding: const EdgeInsets.symmetric(horizontal: kLoginImagePaddingH),
           child: ClipRRect(
             borderRadius: AppRadius.cardBR,
             child: Image.asset(

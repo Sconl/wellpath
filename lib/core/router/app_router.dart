@@ -49,6 +49,7 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/auth/providers/auth_providers.dart';
+import '../../features/discover/presentation/discover_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG BLOCK
@@ -190,6 +191,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           week:  'Week 4',
         ),
       ),
+      GoRoute(
+  path: '/discover',
+  name: 'discover',
+  builder: (_, __) => const DiscoverScreen(),
+),
       GoRoute(
         path:    '/wellness',
         name:    'wellness',
