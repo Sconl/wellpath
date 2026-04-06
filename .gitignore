@@ -2,6 +2,9 @@
 # Flutter / Dart
 ############################################################
 
+# Environment variables (contains API keys)
+.env
+
 # Dart tool
 .dart_tool/
 .packages

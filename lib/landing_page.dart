@@ -674,6 +674,8 @@ class _LandingPageState extends State<LandingPage> {
                             },
                             profileIcon: Icons.person_outline,
                             profileTooltip: 'Sign in or create an account',
+                            fullWidth:
+                                true, // Full viewport width for hero landing page
                           ),
 
                           SizedBox(height: AppSpacing.lg - AppSpacing.sm),

@@ -89,10 +89,12 @@ const Color _kBrandTertiary = Color(0xFFFF8A65); // warm coral
 //
 // Register every non-null path in pubspec.yaml under flutter: assets:
 const String? _kLogoHorizontal =
-    null; // PLACEHOLDER → 'assets/brand/logo_horizontal.svg'
+    'assets/logos/20260326_wellpath_logo_horizontal_primary_color.svg';
+// PLACEHOLDER → 'assets/brand/logo_horizontal.svg'
 const String? _kLogoVertical =
-    null; // PLACEHOLDER → 'assets/brand/logo_vertical.svg'
-const String? _kLogoIcon = null; // PLACEHOLDER → 'assets/brand/logo_icon.svg'
+    'assets/logos/20260326_wellpath_logo_vertical_primary_color.svg'; // PLACEHOLDER → 'assets/brand/logo_vertical.svg'
+const String? _kLogoIcon =
+    'assets/logos/20260326_wellpath_logo_icon_primary_color.svg'; // PLACEHOLDER → 'assets/brand/logo_icon.svg'
 
 // ── Web / PWA assets ──────────────────────────────────────────────────────────
 // favicon goes in web/index.html — not loaded by Flutter widget code at runtime.
@@ -171,7 +173,7 @@ const Color _kLogoLightDefaultColor = Color(0x8AFFFFFF); // white 54%
 // Asset logo size is controlled by width/height passed to BrandLogo/BrandLogoEngine.
 // These only matter when the typographic fallback renders.
 const double _kLogoFontSm = 22.0;
-const double _kLogoFontMd = 32.0;
+const double _kLogoFontMd = 36.0;
 const double _kLogoFontLg = 48.0;
 const double _kLogoFontXl = 64.0;
 
@@ -362,7 +364,7 @@ abstract class BrandLogoEngine {
   /// Full color horizontal logo. Use on dark/neutral backgrounds.
   static Widget horizontalColored(
           {double? width,
-          double? height,
+          double? height = 32,
           LogoSize fallbackSize = LogoSize.md}) =>
       BrandLogo(
           shape: LogoShape.horizontal,
@@ -374,7 +376,7 @@ abstract class BrandLogoEngine {
   /// White horizontal logo. Use over gradients, dark backgrounds, hero images.
   static Widget horizontalWhite(
           {double? width,
-          double? height,
+          double? height = 28,
           LogoSize fallbackSize = LogoSize.md}) =>
       BrandLogo(
           shape: LogoShape.horizontal,
@@ -386,7 +388,7 @@ abstract class BrandLogoEngine {
   /// Black horizontal logo. Use on white/very light backgrounds.
   static Widget horizontalBlack(
           {double? width,
-          double? height,
+          double? height = 28,
           LogoSize fallbackSize = LogoSize.md}) =>
       BrandLogo(
           shape: LogoShape.horizontal,
@@ -400,7 +402,7 @@ abstract class BrandLogoEngine {
   /// Full color vertical logo. Splash screens, auth pages, onboarding.
   static Widget verticalColored(
           {double? width,
-          double? height,
+          double? height = 80,
           LogoSize fallbackSize = LogoSize.lg}) =>
       BrandLogo(
           shape: LogoShape.vertical,
@@ -412,7 +414,7 @@ abstract class BrandLogoEngine {
   /// White vertical logo. Dark splash/auth screens.
   static Widget verticalWhite(
           {double? width,
-          double? height,
+          double? height = 64,
           LogoSize fallbackSize = LogoSize.lg}) =>
       BrandLogo(
           shape: LogoShape.vertical,
@@ -424,7 +426,7 @@ abstract class BrandLogoEngine {
   /// Black vertical logo. Light auth/marketing screens.
   static Widget verticalBlack(
           {double? width,
-          double? height,
+          double? height = 64,
           LogoSize fallbackSize = LogoSize.lg}) =>
       BrandLogo(
           shape: LogoShape.vertical,
@@ -437,7 +439,7 @@ abstract class BrandLogoEngine {
 
   /// Full color icon mark. Favicons, tight app-bar spaces, avatar-scale uses.
   static Widget iconColored(
-          {double? width,
+          {double? width = 40,
           double? height,
           LogoSize fallbackSize = LogoSize.sm}) =>
       BrandLogo(
@@ -449,7 +451,7 @@ abstract class BrandLogoEngine {
 
   /// White icon mark. Dark nav bars, overlay headers.
   static Widget iconWhite(
-          {double? width,
+          {double? width = 32,
           double? height,
           LogoSize fallbackSize = LogoSize.sm}) =>
       BrandLogo(
@@ -461,7 +463,7 @@ abstract class BrandLogoEngine {
 
   /// Black icon mark. Light backgrounds, printed materials.
   static Widget iconBlack(
-          {double? width,
+          {double? width = 32,
           double? height,
           LogoSize fallbackSize = LogoSize.sm}) =>
       BrandLogo(
@@ -538,6 +540,39 @@ class BrandLogo extends StatelessWidget {
         lightColor: lightColor,
       );
 
+  // Default height based on fallbackSize if height not specified
+  double? get _defaultHeight {
+    if (height != null) return height;
+    switch (fallbackSize) {
+      case LogoSize.sm:
+        return 22.0;
+      case LogoSize.md:
+        return 32.0;
+      case LogoSize.lg:
+        return 48.0;
+      case LogoSize.xl:
+        return 64.0;
+    }
+  }
+
+  // Default width for icons
+  double? get _defaultWidth {
+    if (width != null) return width;
+    if (shape == LogoShape.icon) {
+      switch (fallbackSize) {
+        case LogoSize.sm:
+          return 22.0;
+        case LogoSize.md:
+          return 32.0;
+        case LogoSize.lg:
+          return 48.0;
+        case LogoSize.xl:
+          return 64.0;
+      }
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final path = _assetPath;
@@ -548,8 +583,8 @@ class BrandLogo extends StatelessWidget {
     if (path.toLowerCase().endsWith('.svg')) {
       return SvgPicture.asset(
         path,
-        width: width,
-        height: height,
+        width: _defaultWidth,
+        height: _defaultHeight,
         colorFilter: cf,
         errorBuilder: (_, __, ___) => _fallback(),
       );
@@ -558,8 +593,8 @@ class BrandLogo extends StatelessWidget {
     // Non-SVG (PNG, WebP, JPG, animated GIF).
     Widget img = Image.asset(
       path,
-      width: width,
-      height: height,
+      width: _defaultWidth,
+      height: _defaultHeight,
       fit: BoxFit.contain,
       errorBuilder: (_, __, ___) => _fallback(),
     );

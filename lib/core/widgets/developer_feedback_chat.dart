@@ -30,28 +30,46 @@
 //
 // STEP 2 — Run locally with the key
 // ────────────────────────────────────
-//   flutter run --dart-define=GEMINI_API_KEY=AIzaYourKeyHere
+//   Quick Start (Recommended):
+//   ──────────────────────────
+//   ./flutter_run_chrome.sh     # Runs flutter run -d chrome with AI
+//   ./flutter_build_web.sh      # Runs flutter build web with AI
+//   ./deploy_with_ai.sh         # Builds and deploys with AI
 //
-//   In VS Code — .vscode/launch.json:
-//   {
-//     "version": "0.2.0",
-//     "configurations": [
-//       {
-//         "name": "WellPath (Chrome)",
-//         "request": "launch",
-//         "type": "dart",
-//         "args": ["--dart-define=GEMINI_API_KEY=AIzaYourKeyHere"]
-//       }
-//     ]
-//   }
+//   Using the universal script:
+//   ──────────────────────────
+//   ./run_with_ai.sh run -d chrome
+//   ./run_with_ai.sh build web --release
+//
+//   Manual commands:
+//   ──────────────────────────
+//   flutter run -d chrome --dart-define=GEMINI_API_KEY=AIzaYourKeyHere
+//   flutter build web --dart-define=GEMINI_API_KEY=AIzaYourKeyHere
+//
+//   VS Code (alternative):
+//   ──────────────────────
+//   Use launch configurations in .vscode/launch.json
+//   Select "WellPath (Chrome) - With AI"
 //
 // STEP 3 — Build and deploy to Firebase Hosting
 // ───────────────────────────────────────────────
-//   flutter build web --release --dart-define=GEMINI_API_KEY=AIzaYourKeyHere
+//   Quick deploy:
+//   ────────────
+//   ./deploy_with_ai.sh
+//
+//   GitHub Actions (CI/CD):
+//   ──────────────────────
+//   Push to dev/main branch - automatically deploys with AI
+//   Requires GEMINI_API_KEY secret in GitHub repository settings
+//
+//   Manual steps:
+//   ────────────
+//   ./run_with_ai.sh build web --release
 //   firebase deploy --only hosting
 //
 //   Or use deploy.sh in the project root:
-//   #!/bin/bash
+//   ─────────────────────────────────────
+//   export GEMINI_API_KEY=AIzaYourKeyHere
 //   flutter build web --release --dart-define=GEMINI_API_KEY=${GEMINI_API_KEY}
 //   firebase deploy --only hosting
 //
@@ -60,6 +78,14 @@
 //   --dart-define keys ARE visible in compiled JavaScript. Acceptable for a
 //   student project. Before commercial launch, proxy via a Firebase Cloud
 //   Function with the key stored in Firebase Secret Manager.
+//
+// RELIABILITY FEATURES
+// ─────────────────────
+//   • Automatic retry with exponential backoff (up to 3 attempts)
+//   • 30-second timeout per request
+//   • Graceful fallback messages when AI is unavailable
+//   • Chat session persistence across tab switches
+//   • API key validation with helpful error messages
 //
 // STEP 4 — pubspec.yaml dependency
 // ──────────────────────────────────
@@ -75,6 +101,7 @@
 //
 // ═════════════════════════════════════════════════════════════════════════════
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -92,43 +119,46 @@ import 'app_fab.dart'; // for kFabSize — used for send button border-radius
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Gemini ────────────────────────────────────────────────────────────────────
-const String _kGeminiModel     = 'gemini-flash-latest';
-const int    _kMaxOutputTokens = 300;
-const double _kTemperature     = 0.7;
+const String _kGeminiModel = 'gemini-flash-latest';
+const int _kMaxOutputTokens = 300;
+const double _kTemperature = 0.7;
+const int _kMaxRetries = 3;
+const Duration _kRequestTimeout = Duration(seconds: 30);
 
 // ── Internal markers ──────────────────────────────────────────────────────────
-const String _kInitTrigger  = '__START__';
+const String _kInitTrigger = '__START__';
 const String _kSubmitMarker = 'SUBMIT_FEEDBACK|||';
 
 // ── UI copy — AI tab ─────────────────────────────────────────────────────────
-const String _kAiInputHint     = 'Type a message...';
+const String _kAiInputHint = 'Type a message...';
 const String _kAiInputHintDone = 'Feedback submitted — thank you!';
-const String _kNoApiKey =
-    'The AI assistant is not configured yet.\n\n'
-    'Follow the SETUP GUIDE at the top of developer_feedback_chat.dart, '
-    'then run the app with:\n\n'
-    'flutter run --dart-define=GEMINI_API_KEY=AIzaYourKey';
+const String _kNoApiKey = 'The AI assistant is not configured yet.\n\n'
+    'To enable AI chat:\n'
+    '1. Get a free Gemini API key from https://aistudio.google.com/\n'
+    '2. Run the app with: flutter run --dart-define=GEMINI_API_KEY=your_key_here\n'
+    '3. Or add it to your VS Code launch.json\n\n'
+    'The setup guide is at the top of developer_feedback_chat.dart';
 
 // ── UI copy — Live Chat tab ───────────────────────────────────────────────────
 // _kLiveSendLabel removed — unused (button uses an icon, not a text label)
-const String _kLiveTitle       = 'Chat with a Human';
+const String _kLiveTitle = 'Chat with a Human';
 const String _kLiveDescription =
     'Leave your issue and optional contact details. '
     'The developer will review and respond within 48 hours.';
-const String _kLiveMsgHint     = 'Describe your issue or question...';
+const String _kLiveMsgHint = 'Describe your issue or question...';
 const String _kLiveContactHint = 'Email or WhatsApp (optional)';
-const String _kLiveSuccess     = '✅  Request sent. You\'ll hear back soon!';
-const String _kLiveError       = 'Failed to send. Please try again.';
+const String _kLiveSuccess = '✅  Request sent. You\'ll hear back soon!';
+const String _kLiveError = 'Failed to send. Please try again.';
 
 // ── UI copy — Anonymous tab ───────────────────────────────────────────────────
 // _kAnonSendLabel removed — unused (button uses an icon, not a text label)
-const String _kAnonTitle       = 'Anonymous Feedback';
+const String _kAnonTitle = 'Anonymous Feedback';
 const String _kAnonDescription =
     'No account, no name, no tracking. Your feedback is saved '
     'without any identifying information.';
-const String _kAnonHint    = 'Write your feedback here...';
+const String _kAnonHint = 'Write your feedback here...';
 const String _kAnonSuccess = '✅  Feedback received — thank you!';
-const String _kAnonError   = 'Failed to submit. Please try again.';
+const String _kAnonError = 'Failed to submit. Please try again.';
 
 // ── AI system prompt ──────────────────────────────────────────────────────────
 const String _kSystemPrompt = '''
@@ -154,7 +184,6 @@ Stay focused on WellPath. If asked unrelated questions, gently redirect.
 // END CONFIG BLOCK
 // ─────────────────────────────────────────────────────────────────────────────
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Enums and data types
 // ─────────────────────────────────────────────────────────────────────────────
@@ -162,8 +191,8 @@ Stay focused on WellPath. If asked unrelated questions, gently redirect.
 enum _ChatMode { aiAssistant, liveChat, anonymous }
 
 class _ChatMessage {
-  final String   text;
-  final bool     isUser;
+  final String text;
+  final bool isUser;
   final DateTime timestamp;
   _ChatMessage({required this.text, required this.isUser})
       : timestamp = DateTime.now();
@@ -181,12 +210,15 @@ class _FeedbackCategory {
 }
 
 const List<_FeedbackCategory> _kCategories = [
-  _FeedbackCategory(label: 'Bug',     icon: Icons.bug_report_outlined,   value: 'bug'),
-  _FeedbackCategory(label: 'Feature', icon: Icons.lightbulb_outlined,    value: 'feature'),
-  _FeedbackCategory(label: 'General', icon: Icons.chat_outlined,         value: 'general'),
-  _FeedbackCategory(label: 'Praise',  icon: Icons.thumb_up_alt_outlined, value: 'praise'),
+  _FeedbackCategory(
+      label: 'Bug', icon: Icons.bug_report_outlined, value: 'bug'),
+  _FeedbackCategory(
+      label: 'Feature', icon: Icons.lightbulb_outlined, value: 'feature'),
+  _FeedbackCategory(
+      label: 'General', icon: Icons.chat_outlined, value: 'general'),
+  _FeedbackCategory(
+      label: 'Praise', icon: Icons.thumb_up_alt_outlined, value: 'praise'),
 ];
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DeveloperFeedbackChat
@@ -214,39 +246,62 @@ class DeveloperFeedbackChat extends StatefulWidget {
 }
 
 class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
-
   _ChatMode _mode = _ChatMode.aiAssistant;
 
   // ── AI tab ────────────────────────────────────────────────────────────────
-  final List<_ChatMessage>    _aiMessages   = [];
-  final TextEditingController _aiInputCtrl  = TextEditingController();
-  final ScrollController      _aiScrollCtrl = ScrollController();
-  final FocusNode             _aiFocusNode  = FocusNode();
-  bool _aiTyping    = false;
+  final List<_ChatMessage> _aiMessages = [];
+  final TextEditingController _aiInputCtrl = TextEditingController();
+  final ScrollController _aiScrollCtrl = ScrollController();
+  final FocusNode _aiFocusNode = FocusNode();
+  bool _aiTyping = false;
   bool _aiSubmitted = false;
   // ChatSession persists across tab switches so the AI remembers the conversation.
   ChatSession? _chat;
 
   // ── Live chat tab ─────────────────────────────────────────────────────────
-  final TextEditingController _lcMsgCtrl     = TextEditingController();
+  final TextEditingController _lcMsgCtrl = TextEditingController();
   final TextEditingController _lcContactCtrl = TextEditingController();
   bool _lcSending = false;
-  bool _lcSent    = false;
+  bool _lcSent = false;
 
   // ── Anonymous tab ─────────────────────────────────────────────────────────
   final TextEditingController _anonCtrl = TextEditingController();
   String _anonCategory = 'general';
   bool _anonSending = false;
-  bool _anonSent    = false;
+  bool _anonSent = false;
 
-  bool get _apiKeyConfigured =>
-      const String.fromEnvironment('GEMINI_API_KEY').isNotEmpty;
+  bool get _apiKeyConfigured {
+    final key = const String.fromEnvironment('GEMINI_API_KEY');
+    return key.isNotEmpty && key.startsWith('AIza');
+  }
+
+  // API key validation for debugging
+  void _validateApiKey() {
+    final key = const String.fromEnvironment('GEMINI_API_KEY');
+    if (key.isEmpty) {
+      debugPrint(
+          '❌ GEMINI_API_KEY not configured - AI chat will show setup instructions');
+    } else if (!key.startsWith('AIza')) {
+      debugPrint(
+          '⚠️  GEMINI_API_KEY does not start with "AIza" - may be invalid');
+    } else {
+      debugPrint(
+          '✅ GEMINI_API_KEY configured and appears valid (length: ${key.length})');
+    }
+  }
+
+  // Public method to check AI readiness (can be called from outside)
+  static bool isAiReady() {
+    final key = const String.fromEnvironment('GEMINI_API_KEY');
+    return key.isNotEmpty && key.startsWith('AIza');
+  }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
+    _validateApiKey();
     _initAiSession();
   }
 
@@ -268,46 +323,81 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           setState(() => _aiMessages.add(
-            _ChatMessage(text: _kNoApiKey, isUser: false),
-          ));
+                _ChatMessage(text: _kNoApiKey, isUser: false),
+              ));
         }
       });
       return;
     }
 
-    final model = GenerativeModel(
-      model:             _kGeminiModel,
-      apiKey:            const String.fromEnvironment('GEMINI_API_KEY'),
-      systemInstruction: Content.system(_kSystemPrompt),
-      generationConfig:  GenerationConfig(
-        maxOutputTokens: _kMaxOutputTokens,
-        temperature:     _kTemperature,
-      ),
-    );
-    _chat = model.startChat();
-    _triggerGreeting();
+    try {
+      final model = GenerativeModel(
+        model: _kGeminiModel,
+        apiKey: const String.fromEnvironment('GEMINI_API_KEY'),
+        systemInstruction: Content.system(_kSystemPrompt),
+        generationConfig: GenerationConfig(
+          maxOutputTokens: _kMaxOutputTokens,
+          temperature: _kTemperature,
+        ),
+      );
+      _chat = model.startChat();
+      _triggerGreeting();
+    } catch (e) {
+      debugPrint('❌ Failed to initialize AI session: $e');
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _aiMessages.add(
+                _ChatMessage(
+                    text:
+                        '⚠️ AI initialization failed. Please try again later.',
+                    isUser: false),
+              ));
+        }
+      });
+    }
   }
 
   Future<void> _triggerGreeting() async {
+    if (_chat == null) return;
+
     setState(() => _aiTyping = true);
     try {
-      final response = await _chat!.sendMessage(Content.text(_kInitTrigger));
-      final text     = response.text?.trim() ?? '';
+      final response = await _chat!
+          .sendMessage(Content.text(_kInitTrigger))
+          .timeout(_kRequestTimeout);
+      final text = response.text?.trim() ?? '';
       if (mounted) {
         setState(() {
           _aiTyping = false;
           if (text.isNotEmpty) {
             _aiMessages.add(_ChatMessage(text: text, isUser: false));
+          } else {
+            _aiMessages.add(_ChatMessage(
+              text:
+                  'Hi! I\'m here to help collect your feedback about WellPath. What\'s on your mind?',
+              isUser: false,
+            ));
           }
         });
       }
-    } catch (_) {
+    } on TimeoutException {
       if (mounted) {
         setState(() {
           _aiTyping = false;
           _aiMessages.add(_ChatMessage(
-            text: 'Hi! I\'m here to help collect your feedback about WellPath. '
-                  'What\'s on your mind — a bug, feature idea, or something else?',
+            text: '⚠️ AI response timed out. Please try again.',
+            isUser: false,
+          ));
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Greeting failed: $e');
+      if (mounted) {
+        setState(() {
+          _aiTyping = false;
+          _aiMessages.add(_ChatMessage(
+            text:
+                'Hi! I\'m here to help collect your feedback about WellPath. What\'s on your mind — a bug, feature idea, or something else?',
             isUser: false,
           ));
         });
@@ -334,60 +424,76 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
     _aiInputCtrl.clear();
     _scrollAiToBottom();
 
-    try {
-      final response = await _chat!.sendMessage(Content.text(text));
-      final raw      = response.text?.trim() ?? '';
-      if (raw.contains(_kSubmitMarker)) {
-        await _processAiSubmission(raw);
-      } else if (raw.isNotEmpty) {
-        if (mounted) {
-          setState(() {
-            _aiMessages.add(_ChatMessage(text: raw, isUser: false));
-            _aiTyping = false;
-          });
+    String? responseText;
+    for (int attempt = 1; attempt <= _kMaxRetries; attempt++) {
+      try {
+        final response = await _chat!
+            .sendMessage(Content.text(text))
+            .timeout(_kRequestTimeout);
+        responseText = response.text?.trim();
+        break; // Success, exit retry loop
+      } on TimeoutException {
+        if (attempt == _kMaxRetries) {
+          responseText =
+              '⚠️ AI response timed out after $_kMaxRetries attempts. Please try again.';
+        } else {
+          debugPrint('⏳ AI request timeout (attempt $attempt), retrying...');
+          await Future.delayed(
+              Duration(milliseconds: 500 * attempt)); // Exponential backoff
+        }
+      } catch (e) {
+        debugPrint('❌ AI request failed (attempt $attempt): $e');
+        if (attempt == _kMaxRetries) {
+          responseText =
+              '⚠️ AI temporarily unavailable after $_kMaxRetries attempts. Please try again shortly.';
+        } else {
+          await Future.delayed(Duration(milliseconds: 500 * attempt));
         }
       }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _aiTyping = false;
-          _aiMessages.add(_ChatMessage(
-            text: '⚠️ AI temporarily unavailable. Please try again shortly.',
-            isUser: false,
-          ));
-        });
+    }
+
+    if (mounted) {
+      setState(() => _aiTyping = false);
+
+      if (responseText != null) {
+        if (responseText.contains(_kSubmitMarker)) {
+          await _processAiSubmission(responseText);
+        } else if (responseText.isNotEmpty) {
+          _aiMessages.add(_ChatMessage(text: responseText, isUser: false));
+        }
       }
     }
 
     _scrollAiToBottom();
     if (!_aiSubmitted) {
-      SchedulerBinding.instance.addPostFrameCallback(
-          (_) => _aiFocusNode.requestFocus());
+      SchedulerBinding.instance
+          .addPostFrameCallback((_) => _aiFocusNode.requestFocus());
     }
   }
 
   Future<void> _processAiSubmission(String raw) async {
-    final parts   = raw.split(_kSubmitMarker);
+    final parts = raw.split(_kSubmitMarker);
     final jsonStr = parts.length > 1 ? parts.last.trim() : '';
     try {
       final data = jsonDecode(jsonStr) as Map<String, dynamic>;
       await FirebaseFirestore.instance.collection('feedback').add({
         'timestamp': FieldValue.serverTimestamp(),
-        'channel':   'ai_assistant',
-        'page':      widget.page,
-        'type':      data['type']      ?? 'general',
-        'summary':   data['summary']   ?? '',
-        'details':   data['details']   ?? '',
+        'channel': 'ai_assistant',
+        'page': widget.page,
+        'type': data['type'] ?? 'general',
+        'summary': data['summary'] ?? '',
+        'details': data['details'] ?? '',
         'sentiment': data['sentiment'] ?? 'neutral',
-        'status':    'new',
+        'status': 'new',
         'exchanges': _aiMessages.where((m) => m.isUser).length,
       });
       if (mounted) {
         setState(() {
           _aiSubmitted = true;
-          _aiTyping    = false;
+          _aiTyping = false;
           _aiMessages.add(_ChatMessage(
-            text: '✅  Feedback submitted! Thank you for helping make WellPath better.',
+            text:
+                '✅  Feedback submitted! Thank you for helping make WellPath better.',
             isUser: false,
           ));
         });
@@ -397,7 +503,8 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
         setState(() {
           _aiTyping = false;
           _aiMessages.add(_ChatMessage(
-            text: 'I had a hiccup saving that. Could you summarise once more so I can retry?',
+            text:
+                'I had a hiccup saving that. Could you summarise once more so I can retry?',
             isUser: false,
           ));
         });
@@ -412,7 +519,7 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
         _aiScrollCtrl.animateTo(
           _aiScrollCtrl.position.maxScrollExtent,
           duration: const Duration(milliseconds: 280),
-          curve:    Curves.easeOut,
+          curve: Curves.easeOut,
         );
       }
     });
@@ -429,17 +536,17 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
     try {
       await FirebaseFirestore.instance.collection('feedback').add({
         'timestamp': FieldValue.serverTimestamp(),
-        'channel':   'live_chat_request',
-        'page':      widget.page,
-        'type':      'support',
-        'message':   msg,
-        'contact':   _lcContactCtrl.text.trim(),
-        'status':    'new',
+        'channel': 'live_chat_request',
+        'page': widget.page,
+        'type': 'support',
+        'message': msg,
+        'contact': _lcContactCtrl.text.trim(),
+        'status': 'new',
       });
       if (mounted) {
         setState(() {
           _lcSending = false;
-          _lcSent    = true;
+          _lcSent = true;
         });
       }
     } catch (_) {
@@ -462,16 +569,16 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
     try {
       await FirebaseFirestore.instance.collection('feedback').add({
         'timestamp': FieldValue.serverTimestamp(),
-        'channel':   'anonymous',
-        'page':      widget.page,
-        'type':      _anonCategory,
-        'message':   text,
-        'status':    'new',
+        'channel': 'anonymous',
+        'page': widget.page,
+        'type': _anonCategory,
+        'message': text,
+        'status': 'new',
       });
       if (mounted) {
         setState(() {
           _anonSending = false;
-          _anonSent    = true;
+          _anonSent = true;
         });
       }
     } catch (_) {
@@ -520,11 +627,11 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
           horizontal: AppSpacing.md, vertical: AppSpacing.sm + 2),
       child: Row(
         children: [
-
           Container(
-            width: 38, height: 38,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
-              gradient:     AppGradients.button,
+              gradient: AppGradients.button,
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.support_agent_rounded,
@@ -536,11 +643,11 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize:       MainAxisSize.min,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text('WellPath Support', style: AppTypography.h5),
                 Text('We\'re here to help',
-                    style:    AppTypography.caption,
+                    style: AppTypography.caption,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
               ],
@@ -550,34 +657,36 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
           // Gemini badge — only in AI tab when configured
           if (_mode == _ChatMode.aiAssistant && _apiKeyConfigured) ...[
             Container(
-              padding: EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm, vertical: 3),
+              padding:
+                  EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 3),
               decoration: BoxDecoration(
-                color:        AppColors.tint10(AppColors.secondary),
+                color: AppColors.tint10(AppColors.secondary),
                 borderRadius: BorderRadius.circular(AppRadius.pill),
-                border:       Border.all(color: AppColors.tint20(AppColors.secondary)),
+                border:
+                    Border.all(color: AppColors.tint20(AppColors.secondary)),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.auto_awesome_rounded,
                     color: AppColors.secondary, size: 10),
                 const SizedBox(width: 3),
-                Text('Gemini',
-                    style: AppTypography.caption.copyWith(
-                        color: AppColors.secondary, fontSize: 10)),
+                Text('AI Ready',
+                    style: AppTypography.caption
+                        .copyWith(color: AppColors.secondary, fontSize: 10)),
               ]),
             ),
             SizedBox(width: AppSpacing.xs + 2),
           ],
 
           SizedBox(
-            width: 32, height: 32,
+            width: 32,
+            height: 32,
             child: IconButton(
               onPressed: () => Navigator.of(context).pop(),
-              padding:   EdgeInsets.zero,
-              icon: const Icon(Icons.close, color: AppColors.textMuted, size: 18),
+              padding: EdgeInsets.zero,
+              icon:
+                  const Icon(Icons.close, color: AppColors.textMuted, size: 18),
             ),
           ),
-
         ],
       ),
     );
@@ -591,15 +700,24 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
       child: Container(
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color:        AppColors.surface,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppRadius.pill),
-          border:       Border.all(color: AppColors.border),
+          border: Border.all(color: AppColors.border),
         ),
         child: Row(
           children: [
-            _buildTab(mode: _ChatMode.aiAssistant, icon: Icons.auto_awesome_rounded, label: 'AI Chat'),
-            _buildTab(mode: _ChatMode.liveChat,    icon: Icons.headset_mic_outlined,  label: 'Live Chat'),
-            _buildTab(mode: _ChatMode.anonymous,   icon: Icons.lock_outline_rounded,  label: 'Anonymous'),
+            _buildTab(
+                mode: _ChatMode.aiAssistant,
+                icon: Icons.auto_awesome_rounded,
+                label: 'AI Chat'),
+            _buildTab(
+                mode: _ChatMode.liveChat,
+                icon: Icons.headset_mic_outlined,
+                label: 'Live Chat'),
+            _buildTab(
+                mode: _ChatMode.anonymous,
+                icon: Icons.lock_outline_rounded,
+                label: 'Anonymous'),
           ],
         ),
       ),
@@ -608,8 +726,8 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
 
   Widget _buildTab({
     required _ChatMode mode,
-    required IconData  icon,
-    required String    label,
+    required IconData icon,
+    required String label,
   }) {
     final isActive = _mode == mode;
     return Expanded(
@@ -619,37 +737,36 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
             setState(() => _mode = mode);
           }
           if (mode == _ChatMode.aiAssistant) {
-            SchedulerBinding.instance.addPostFrameCallback(
-                (_) => _aiFocusNode.requestFocus());
+            SchedulerBinding.instance
+                .addPostFrameCallback((_) => _aiFocusNode.requestFocus());
           }
         },
         child: AnimatedContainer(
           duration: AppDurations.fast,
           padding: EdgeInsets.symmetric(
-              horizontal: AppSpacing.xs,
-              vertical:   AppSpacing.sm - 1),
+              horizontal: AppSpacing.xs, vertical: AppSpacing.sm - 1),
           decoration: BoxDecoration(
-            gradient:     isActive ? AppGradients.button : null,
-            color:        isActive ? null : Colors.transparent,
+            gradient: isActive ? AppGradients.button : null,
+            color: isActive ? null : Colors.transparent,
             borderRadius: BorderRadius.circular(AppRadius.pill - 4),
-            boxShadow:    isActive ? AppShadows.buttonGlow : [],
+            boxShadow: isActive ? AppShadows.buttonGlow : [],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize:      MainAxisSize.min,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon,
-                  size:  13,
+                  size: 13,
                   color: isActive ? AppColors.onPrimary : AppColors.textMuted),
               const SizedBox(width: 5),
               Flexible(
                 child: Text(
                   label,
                   style: AppTypography.badge.copyWith(
-                    fontSize:     11,
+                    fontSize: 11,
                     letterSpacing: 0,
-                    fontWeight:   isActive ? FontWeight.w700 : FontWeight.w500,
-                    color:        isActive ? AppColors.onPrimary : AppColors.textMuted,
+                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                    color: isActive ? AppColors.onPrimary : AppColors.textMuted,
                   ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
@@ -669,8 +786,8 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
       duration: AppDurations.normal,
       child: switch (_mode) {
         _ChatMode.aiAssistant => _buildAiContent(),
-        _ChatMode.liveChat    => _buildLiveChatContent(),
-        _ChatMode.anonymous   => _buildAnonContent(),
+        _ChatMode.liveChat => _buildLiveChatContent(),
+        _ChatMode.anonymous => _buildAnonContent(),
       },
     );
   }
@@ -680,10 +797,10 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
   Widget _buildAiContent() {
     final itemCount = _aiMessages.length + (_aiTyping ? 1 : 0);
     return ListView.builder(
-      key:        const ValueKey(_ChatMode.aiAssistant),
+      key: const ValueKey(_ChatMode.aiAssistant),
       controller: _aiScrollCtrl,
-      padding:    EdgeInsets.all(AppSpacing.md),
-      itemCount:  itemCount,
+      padding: EdgeInsets.all(AppSpacing.md),
+      itemCount: itemCount,
       itemBuilder: (context, index) {
         if (index == _aiMessages.length && _aiTyping) {
           return _buildTypingBubble();
@@ -694,40 +811,39 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
   }
 
   Widget _buildMessageBubble(_ChatMessage msg) {
-    const double avatarW  = 28.0;
+    const double avatarW = 28.0;
     const double avatarMg = 6.0;
 
     return Padding(
       padding: EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
-        mainAxisAlignment:  msg.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            msg.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-
           if (!msg.isUser)
             Container(
-              width: avatarW, height: avatarW,
+              width: avatarW,
+              height: avatarW,
               margin: const EdgeInsets.only(right: avatarMg, bottom: 2),
               decoration: BoxDecoration(
-                gradient:     AppGradients.button,
+                gradient: AppGradients.button,
                 borderRadius: BorderRadius.circular(7),
               ),
               child: const Icon(Icons.auto_awesome_rounded,
                   color: Colors.white, size: 14),
             ),
-
           Flexible(
             child: Container(
               padding: EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md - 2,
-                  vertical:   AppSpacing.sm + 1),
+                  horizontal: AppSpacing.md - 2, vertical: AppSpacing.sm + 1),
               decoration: BoxDecoration(
                 gradient: msg.isUser ? AppGradients.button : null,
-                color:    msg.isUser ? null : AppColors.surfaceMid,
+                color: msg.isUser ? null : AppColors.surfaceMid,
                 borderRadius: BorderRadius.only(
-                  topLeft:     const Radius.circular(14),
-                  topRight:    const Radius.circular(14),
-                  bottomLeft:  Radius.circular(msg.isUser ? 14 : 3),
+                  topLeft: const Radius.circular(14),
+                  topRight: const Radius.circular(14),
+                  bottomLeft: Radius.circular(msg.isUser ? 14 : 3),
                   bottomRight: Radius.circular(msg.isUser ? 3 : 14),
                 ),
                 border: msg.isUser ? null : Border.all(color: AppColors.border),
@@ -735,16 +851,14 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
               child: Text(
                 msg.text,
                 style: AppTypography.body.copyWith(
-                  color:  msg.isUser ? AppColors.onPrimary : AppColors.textPrimary,
+                  color:
+                      msg.isUser ? AppColors.onPrimary : AppColors.textPrimary,
                   height: 1.5,
                 ),
               ),
             ),
           ),
-
-          if (msg.isUser)
-            const SizedBox(width: avatarW + avatarMg),
-
+          if (msg.isUser) const SizedBox(width: avatarW + avatarMg),
         ],
       ),
     );
@@ -754,14 +868,15 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
     return Padding(
       padding: EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
-        mainAxisAlignment:  MainAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Container(
-            width: 28, height: 28,
+            width: 28,
+            height: 28,
             margin: const EdgeInsets.only(right: 6, bottom: 2),
             decoration: BoxDecoration(
-              gradient:     AppGradients.button,
+              gradient: AppGradients.button,
               borderRadius: BorderRadius.circular(7),
             ),
             child: const Icon(Icons.auto_awesome_rounded,
@@ -769,16 +884,15 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
           ),
           Container(
             padding: EdgeInsets.symmetric(
-                horizontal: AppSpacing.md - 2,
-                vertical:   AppSpacing.sm + 4),
+                horizontal: AppSpacing.md - 2, vertical: AppSpacing.sm + 4),
             decoration: BoxDecoration(
-              color:  AppColors.surfaceMid,
+              color: AppColors.surfaceMid,
               border: Border.all(color: AppColors.border),
               borderRadius: const BorderRadius.only(
-                topLeft:     Radius.circular(14),
-                topRight:    Radius.circular(14),
+                topLeft: Radius.circular(14),
+                topRight: Radius.circular(14),
                 bottomRight: Radius.circular(14),
-                bottomLeft:  Radius.circular(3),
+                bottomLeft: Radius.circular(3),
               ),
             ),
             child: const _TypingDots(),
@@ -792,9 +906,9 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
 
   Widget _buildLiveChatContent() {
     return SingleChildScrollView(
-      key:     const ValueKey(_ChatMode.liveChat),
+      key: const ValueKey(_ChatMode.liveChat),
       padding: EdgeInsets.all(AppSpacing.md),
-      child:   _lcSent
+      child: _lcSent
           ? Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
@@ -804,8 +918,7 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
                         color: AppColors.success, size: 48),
                     SizedBox(height: AppSpacing.md),
                     Text(_kLiveSuccess,
-                        style:     AppTypography.body,
-                        textAlign: TextAlign.center),
+                        style: AppTypography.body, textAlign: TextAlign.center),
                   ],
                 ),
               ),
@@ -813,14 +926,15 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 Row(children: [
                   Container(
-                    width: 38, height: 38,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
-                      color:        AppColors.tint10(AppColors.secondary),
+                      color: AppColors.tint10(AppColors.secondary),
                       borderRadius: BorderRadius.circular(10),
-                      border:       Border.all(color: AppColors.tint20(AppColors.secondary)),
+                      border: Border.all(
+                          color: AppColors.tint20(AppColors.secondary)),
                     ),
                     child: Icon(Icons.headset_mic_outlined,
                         color: AppColors.secondary, size: 20),
@@ -828,41 +942,36 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
                   SizedBox(width: AppSpacing.sm + 2),
                   Expanded(child: Text(_kLiveTitle, style: AppTypography.h5)),
                 ]),
-
                 SizedBox(height: AppSpacing.sm + 2),
-
                 Text(_kLiveDescription,
                     style: AppTypography.bodySmall.copyWith(height: 1.55)),
-
                 SizedBox(height: AppSpacing.md),
-
                 TextField(
                   controller: _lcContactCtrl,
-                  maxLines:   1,
-                  style:      AppTypography.body,
+                  maxLines: 1,
+                  style: AppTypography.body,
                   decoration: InputDecoration(
-                    hintText:  _kLiveContactHint,
-                    hintStyle: AppTypography.input.copyWith(color: AppColors.textHint),
+                    hintText: _kLiveContactHint,
+                    hintStyle:
+                        AppTypography.input.copyWith(color: AppColors.textHint),
                     prefixIcon: Icon(Icons.alternate_email_rounded,
                         color: AppColors.textMuted, size: 18),
-                    filled:    true,
+                    filled: true,
                     fillColor: AppColors.surface,
                     contentPadding: EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical:   AppSpacing.sm + 2),
+                        horizontal: AppSpacing.md, vertical: AppSpacing.sm + 2),
                     border: OutlineInputBorder(
                         borderRadius: AppRadius.inputBR,
-                        borderSide:   const BorderSide(color: AppColors.border)),
+                        borderSide: const BorderSide(color: AppColors.border)),
                     enabledBorder: OutlineInputBorder(
                         borderRadius: AppRadius.inputBR,
-                        borderSide:   const BorderSide(color: AppColors.border)),
+                        borderSide: const BorderSide(color: AppColors.border)),
                     focusedBorder: OutlineInputBorder(
                         borderRadius: AppRadius.inputBR,
-                        borderSide:   BorderSide(
+                        borderSide: BorderSide(
                             color: AppColors.borderFocused, width: 1.5)),
                   ),
                 ),
-
               ],
             ),
     );
@@ -872,9 +981,9 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
 
   Widget _buildAnonContent() {
     return SingleChildScrollView(
-      key:     const ValueKey(_ChatMode.anonymous),
+      key: const ValueKey(_ChatMode.anonymous),
       padding: EdgeInsets.all(AppSpacing.md),
-      child:   _anonSent
+      child: _anonSent
           ? Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
@@ -884,8 +993,7 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
                         color: AppColors.success, size: 48),
                     SizedBox(height: AppSpacing.md),
                     Text(_kAnonSuccess,
-                        style:     AppTypography.body,
-                        textAlign: TextAlign.center),
+                        style: AppTypography.body, textAlign: TextAlign.center),
                   ],
                 ),
               ),
@@ -893,14 +1001,15 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 Row(children: [
                   Container(
-                    width: 38, height: 38,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
-                      color:        AppColors.tint10(AppColors.primary),
+                      color: AppColors.tint10(AppColors.primary),
                       borderRadius: BorderRadius.circular(10),
-                      border:       Border.all(color: AppColors.tint20(AppColors.primary)),
+                      border: Border.all(
+                          color: AppColors.tint20(AppColors.primary)),
                     ),
                     child: Icon(Icons.lock_outline_rounded,
                         color: AppColors.primary, size: 20),
@@ -908,16 +1017,12 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
                   SizedBox(width: AppSpacing.sm + 2),
                   Expanded(child: Text(_kAnonTitle, style: AppTypography.h5)),
                 ]),
-
                 SizedBox(height: AppSpacing.sm + 2),
-
                 Text(_kAnonDescription,
                     style: AppTypography.bodySmall.copyWith(height: 1.55)),
-
                 SizedBox(height: AppSpacing.md),
-
                 Wrap(
-                  spacing:    AppSpacing.sm,
+                  spacing: AppSpacing.sm,
                   runSpacing: AppSpacing.sm,
                   children: _kCategories.map((cat) {
                     final selected = _anonCategory == cat.value;
@@ -927,29 +1032,31 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
                         duration: AppDurations.fast,
                         padding: EdgeInsets.symmetric(
                             horizontal: AppSpacing.md - 2,
-                            vertical:   AppSpacing.sm - 1),
+                            vertical: AppSpacing.sm - 1),
                         decoration: BoxDecoration(
-                          gradient:     selected ? AppGradients.button : null,
-                          color:        selected ? null : AppColors.surface,
+                          gradient: selected ? AppGradients.button : null,
+                          color: selected ? null : AppColors.surface,
                           borderRadius: BorderRadius.circular(AppRadius.pill),
-                          border:       Border.all(
-                            color: selected ? Colors.transparent : AppColors.border,
+                          border: Border.all(
+                            color: selected
+                                ? Colors.transparent
+                                : AppColors.border,
                           ),
                           boxShadow: selected ? AppShadows.buttonGlow : [],
                         ),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
                           Icon(cat.icon,
-                              size:  13,
+                              size: 13,
                               color: selected
                                   ? AppColors.onPrimary
                                   : AppColors.textMuted),
                           const SizedBox(width: 5),
                           Text(cat.label,
                               style: AppTypography.badge.copyWith(
-                                fontSize:      11,
+                                fontSize: 11,
                                 letterSpacing: 0,
-                                fontWeight:    FontWeight.w600,
-                                color:         selected
+                                fontWeight: FontWeight.w600,
+                                color: selected
                                     ? AppColors.onPrimary
                                     : AppColors.textMuted,
                               )),
@@ -958,7 +1065,6 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
                     );
                   }).toList(),
                 ),
-
               ],
             ),
     );
@@ -969,8 +1075,8 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
   Widget _buildInputArea() {
     return switch (_mode) {
       _ChatMode.aiAssistant => _buildAiInput(),
-      _ChatMode.liveChat    => _buildLiveChatInput(),
-      _ChatMode.anonymous   => _buildAnonInput(),
+      _ChatMode.liveChat => _buildLiveChatInput(),
+      _ChatMode.anonymous => _buildAnonInput(),
     };
   }
 
@@ -982,28 +1088,33 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
         children: [
           Expanded(
             child: TextField(
-              controller:      _aiInputCtrl,
-              focusNode:       _aiFocusNode,
-              enabled:         !_aiSubmitted,
-              maxLines:        1,
-              style:           AppTypography.body,
+              controller: _aiInputCtrl,
+              focusNode: _aiFocusNode,
+              enabled: !_aiSubmitted,
+              maxLines: 1,
+              style: AppTypography.body,
               textInputAction: TextInputAction.send,
-              onSubmitted:     (_) => _sendAiMessage(),
+              onSubmitted: (_) => _sendAiMessage(),
               decoration: InputDecoration(
-                hintText:  _aiSubmitted ? _kAiInputHintDone : _kAiInputHint,
-                hintStyle: AppTypography.input.copyWith(color: AppColors.textHint),
-                filled:    true,
+                hintText: _aiSubmitted ? _kAiInputHintDone : _kAiInputHint,
+                hintStyle:
+                    AppTypography.input.copyWith(color: AppColors.textHint),
+                filled: true,
                 fillColor: AppColors.surface,
                 contentPadding: EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical:   AppSpacing.sm + 2),
-                border: OutlineInputBorder(borderRadius: AppRadius.pillBR,
+                    horizontal: AppSpacing.md, vertical: AppSpacing.sm + 2),
+                border: OutlineInputBorder(
+                    borderRadius: AppRadius.pillBR,
                     borderSide: const BorderSide(color: AppColors.border)),
-                enabledBorder: OutlineInputBorder(borderRadius: AppRadius.pillBR,
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: AppRadius.pillBR,
                     borderSide: const BorderSide(color: AppColors.border)),
-                focusedBorder: OutlineInputBorder(borderRadius: AppRadius.pillBR,
-                    borderSide: BorderSide(color: AppColors.borderFocused, width: 1.5)),
-                disabledBorder: OutlineInputBorder(borderRadius: AppRadius.pillBR,
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: AppRadius.pillBR,
+                    borderSide:
+                        BorderSide(color: AppColors.borderFocused, width: 1.5)),
+                disabledBorder: OutlineInputBorder(
+                    borderRadius: AppRadius.pillBR,
                     borderSide: const BorderSide(color: AppColors.border)),
               ),
             ),
@@ -1011,7 +1122,7 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
           SizedBox(width: AppSpacing.sm),
           _sendIconButton(
             onPressed: (_aiSubmitted || _aiTyping) ? null : _sendAiMessage,
-            loading:   _aiTyping,
+            loading: _aiTyping,
           ),
         ],
       ),
@@ -1030,30 +1141,34 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
           Expanded(
             child: TextField(
               controller: _lcMsgCtrl,
-              maxLines:   3,
-              minLines:   1,
-              style:      AppTypography.body,
+              maxLines: 3,
+              minLines: 1,
+              style: AppTypography.body,
               decoration: InputDecoration(
-                hintText:  _kLiveMsgHint,
-                hintStyle: AppTypography.input.copyWith(color: AppColors.textHint),
-                filled:    true,
+                hintText: _kLiveMsgHint,
+                hintStyle:
+                    AppTypography.input.copyWith(color: AppColors.textHint),
+                filled: true,
                 fillColor: AppColors.surface,
                 contentPadding: EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical:   AppSpacing.sm + 2),
-                border: OutlineInputBorder(borderRadius: AppRadius.inputBR,
+                    horizontal: AppSpacing.md, vertical: AppSpacing.sm + 2),
+                border: OutlineInputBorder(
+                    borderRadius: AppRadius.inputBR,
                     borderSide: const BorderSide(color: AppColors.border)),
-                enabledBorder: OutlineInputBorder(borderRadius: AppRadius.inputBR,
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: AppRadius.inputBR,
                     borderSide: const BorderSide(color: AppColors.border)),
-                focusedBorder: OutlineInputBorder(borderRadius: AppRadius.inputBR,
-                    borderSide: BorderSide(color: AppColors.borderFocused, width: 1.5)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: AppRadius.inputBR,
+                    borderSide:
+                        BorderSide(color: AppColors.borderFocused, width: 1.5)),
               ),
             ),
           ),
           SizedBox(width: AppSpacing.sm),
           _sendIconButton(
             onPressed: _lcSending ? null : _submitLiveChat,
-            loading:   _lcSending,
+            loading: _lcSending,
           ),
         ],
       ),
@@ -1072,30 +1187,34 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
           Expanded(
             child: TextField(
               controller: _anonCtrl,
-              maxLines:   3,
-              minLines:   1,
-              style:      AppTypography.body,
+              maxLines: 3,
+              minLines: 1,
+              style: AppTypography.body,
               decoration: InputDecoration(
-                hintText:  _kAnonHint,
-                hintStyle: AppTypography.input.copyWith(color: AppColors.textHint),
-                filled:    true,
+                hintText: _kAnonHint,
+                hintStyle:
+                    AppTypography.input.copyWith(color: AppColors.textHint),
+                filled: true,
                 fillColor: AppColors.surface,
                 contentPadding: EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical:   AppSpacing.sm + 2),
-                border: OutlineInputBorder(borderRadius: AppRadius.inputBR,
+                    horizontal: AppSpacing.md, vertical: AppSpacing.sm + 2),
+                border: OutlineInputBorder(
+                    borderRadius: AppRadius.inputBR,
                     borderSide: const BorderSide(color: AppColors.border)),
-                enabledBorder: OutlineInputBorder(borderRadius: AppRadius.inputBR,
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: AppRadius.inputBR,
                     borderSide: const BorderSide(color: AppColors.border)),
-                focusedBorder: OutlineInputBorder(borderRadius: AppRadius.inputBR,
-                    borderSide: BorderSide(color: AppColors.borderFocused, width: 1.5)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: AppRadius.inputBR,
+                    borderSide:
+                        BorderSide(color: AppColors.borderFocused, width: 1.5)),
               ),
             ),
           ),
           SizedBox(width: AppSpacing.sm),
           _sendIconButton(
             onPressed: _anonSending ? null : _submitAnonymous,
-            loading:   _anonSending,
+            loading: _anonSending,
           ),
         ],
       ),
@@ -1105,42 +1224,42 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
   // Shared gradient send icon button
   Widget _sendIconButton({
     VoidCallback? onPressed,
-    bool loading          = false,
-    IconData icon         = Icons.send_rounded,
+    bool loading = false,
+    IconData icon = Icons.send_rounded,
   }) {
     final disabled = onPressed == null;
     return AnimatedContainer(
       duration: AppDurations.fast,
       decoration: disabled
           ? BoxDecoration(
-              color:        AppColors.surface,
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(kFabSize / 2),
-              border:       Border.all(color: AppColors.border),
+              border: Border.all(color: AppColors.border),
             )
           : BoxDecoration(
-              gradient:     AppGradients.button,
+              gradient: AppGradients.button,
               borderRadius: BorderRadius.circular(kFabSize / 2),
-              boxShadow:    AppShadows.buttonGlow,
+              boxShadow: AppShadows.buttonGlow,
             ),
       child: IconButton(
-        onPressed:   onPressed,
-        padding:     const EdgeInsets.all(12),
+        onPressed: onPressed,
+        padding: const EdgeInsets.all(12),
         constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
         icon: loading
             ? const SizedBox(
-                width: 18, height: 18,
+                width: 18,
+                height: 18,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             : Icon(
                 icon,
-                size:  20,
+                size: 20,
                 color: disabled ? AppColors.textMuted : AppColors.onPrimary,
               ),
       ),
     );
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // _TypingDots — animated 3-dot typing indicator
@@ -1155,14 +1274,13 @@ class _TypingDots extends StatefulWidget {
 
 class _TypingDotsState extends State<_TypingDots>
     with SingleTickerProviderStateMixin {
-
   late AnimationController _ctrl;
 
   @override
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-      vsync:    this,
+      vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat();
   }
@@ -1180,18 +1298,19 @@ class _TypingDotsState extends State<_TypingDots>
       builder: (_, __) => Row(
         mainAxisSize: MainAxisSize.min,
         children: List.generate(3, (i) {
-          final raw   = (_ctrl.value - i * 0.33) % 1.0;
+          final raw = (_ctrl.value - i * 0.33) % 1.0;
           final phase = raw < 0 ? raw + 1.0 : raw;
           final pulse = math.sin(phase * math.pi).clamp(0.0, 1.0);
           return Container(
             margin: const EdgeInsets.symmetric(horizontal: 2.5),
-            width: 8, height: 8,
+            width: 8,
+            height: 8,
             transform: Matrix4.diagonal3Values(
                 0.6 + 0.4 * pulse, 0.6 + 0.4 * pulse, 1.0),
             transformAlignment: Alignment.center,
             decoration: BoxDecoration(
-              color:  AppColors.primary.withValues(alpha: 0.35 + 0.65 * pulse),
-              shape:  BoxShape.circle,
+              color: AppColors.primary.withValues(alpha: 0.35 + 0.65 * pulse),
+              shape: BoxShape.circle,
             ),
           );
         }),

@@ -18,6 +18,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/style/app_theme.dart';
 import '../../../core/style/app_canvas.dart';
+import '../../../core/style/app_branding.dart';
 import '../../../core/style/app_decorations.dart';
 import '../providers/auth_providers.dart';
 import 'widgets/auth_widgets.dart';
@@ -32,7 +33,7 @@ const int kSignupFlexImage = 5;
 const double kSignupFormMaxWidth = 420.0;
 const double kSignupFormPaddingH = 36.0;
 const double kSignupFormPaddingV = 40.0;
-const double kSignupLogoSize = 36.0;
+
 const double kSignupSubtitleSize = 14.0;
 const String kSignupGifPath = 'animated-gifs/signup_digital_screen_female.gif';
 const double kSignupImagePaddingH = 48.0;
@@ -159,7 +160,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const WellPathLogo(fontSize: kSignupLogoSize),
+                BrandLogoEngine.verticalColored(),
                 SizedBox(height: AppSpacing.xs + 2),
                 Text(
                   'Create your account',

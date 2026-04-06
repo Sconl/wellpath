@@ -17,6 +17,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/style/app_theme.dart';
 import '../../../core/style/app_canvas.dart';
 import '../../../core/style/app_decorations.dart';
+import '../../../core/style/app_branding.dart';
 import '../providers/auth_providers.dart';
 import 'widgets/auth_widgets.dart';
 
@@ -30,7 +31,7 @@ const int kLoginFlexImage = 5;
 const double kLoginFormMaxWidth = 420.0;
 const double kLoginFormPaddingH = 36.0;
 const double kLoginFormPaddingV = 48.0;
-const double kLoginLogoSize = 36.0;
+
 const double kLoginSubtitleSize = 14.0;
 const String kLoginGifPath = 'animated-gifs/login_digital_screen_male.gif';
 const double kLoginImagePaddingH = 48.0;
@@ -181,7 +182,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const WellPathLogo(fontSize: kLoginLogoSize),
+                BrandLogoEngine.verticalColored(),
                 SizedBox(height: AppSpacing.xs + 2),
                 Text(
                   'Welcome back',
