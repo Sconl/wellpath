@@ -25,7 +25,8 @@ import 'package:flutter/material.dart';
 
 // Import path: this file is at lib/features/auth/presentation/widgets/
 // ../../../../ steps back to lib/, then core/theme/app_theme.dart
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/style/app_theme.dart';
+import '../../../../core/style/app_decorations.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WellPathLogo

@@ -18,7 +18,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/style/app_theme.dart';
+import '../../../../core/style/app_decorations.dart';
 import '../../data/place_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -10,7 +10,8 @@
 
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_theme.dart';
+import '../../../core/style/app_theme.dart';
+import '../../../core/style/app_decorations.dart';
 import '../../wellness/data/wellness_log_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18,7 +19,7 @@ import '../../wellness/data/wellness_log_model.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Ring dimensions ──
-const double _kRingSize        = 72.0;
+const double _kRingSize = 72.0;
 const double _kRingStrokeWidth = 7.0;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,12 +37,12 @@ class WellnessSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final workoutMins  = _sumType(WellnessType.workout);
+    final workoutMins = _sumType(WellnessType.workout);
     final waterGlasses = _sumType(WellnessType.water);
-    final sleepHours   = _sumType(WellnessType.sleep);
+    final sleepHours = _sumType(WellnessType.sleep);
 
     return Container(
-      padding:    const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       decoration: AppDecorations.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,7 +62,7 @@ class WellnessSummaryCard extends StatelessWidget {
                 const Icon(
                   Icons.check_circle_rounded,
                   color: AppColors.success,
-                  size:  16,
+                  size: 16,
                 ),
             ],
           ),
@@ -73,25 +74,25 @@ class WellnessSummaryCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _ProgressRing(
-                label:    WellnessType.workout.displayLabel,
-                unit:     WellnessType.workout.unit,
-                value:    workoutMins,
-                target:   kDefaultWorkoutTargetMins,
-                color:    AppColors.primary,
+                label: WellnessType.workout.displayLabel,
+                unit: WellnessType.workout.unit,
+                value: workoutMins,
+                target: kDefaultWorkoutTargetMins,
+                color: AppColors.primary,
               ),
               _ProgressRing(
-                label:    WellnessType.water.displayLabel,
-                unit:     WellnessType.water.unit,
-                value:    waterGlasses,
-                target:   kDefaultWaterTargetGlasses,
-                color:    AppColors.secondary,
+                label: WellnessType.water.displayLabel,
+                unit: WellnessType.water.unit,
+                value: waterGlasses,
+                target: kDefaultWaterTargetGlasses,
+                color: AppColors.secondary,
               ),
               _ProgressRing(
-                label:    WellnessType.sleep.displayLabel,
-                unit:     WellnessType.sleep.unit,
-                value:    sleepHours,
-                target:   kDefaultSleepTargetHours,
-                color:    AppColors.tertiary,
+                label: WellnessType.sleep.displayLabel,
+                unit: WellnessType.sleep.unit,
+                value: sleepHours,
+                target: kDefaultSleepTargetHours,
+                color: AppColors.tertiary,
               ),
             ],
           ),
@@ -104,9 +105,9 @@ class WellnessSummaryCard extends StatelessWidget {
       logs.where((l) => l.type == type).fold(0.0, (acc, l) => acc + l.value);
 
   bool _allTargetsMet(double w, double water, double s) =>
-      w    >= kDefaultWorkoutTargetMins    &&
-      water >= kDefaultWaterTargetGlasses  &&
-      s    >= kDefaultSleepTargetHours;
+      w >= kDefaultWorkoutTargetMins &&
+      water >= kDefaultWaterTargetGlasses &&
+      s >= kDefaultSleepTargetHours;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -118,7 +119,7 @@ class _ProgressRing extends StatelessWidget {
   final String unit;
   final double value;
   final double target;
-  final Color  color;
+  final Color color;
 
   const _ProgressRing({
     required this.label,
@@ -141,24 +142,24 @@ class _ProgressRing extends StatelessWidget {
     return Column(
       children: [
         SizedBox(
-          width:  _kRingSize,
+          width: _kRingSize,
           height: _kRingSize,
           child: Stack(
             alignment: Alignment.center,
             children: [
               // Background track — always full, just dimmed
               CircularProgressIndicator(
-                value:       1.0,
+                value: 1.0,
                 strokeWidth: _kRingStrokeWidth,
-                color:       color.withOpacity(0.12),
-                strokeCap:   StrokeCap.round,
+                color: color.withValues(alpha: 0.12),
+                strokeCap: StrokeCap.round,
               ),
               // Foreground progress
               CircularProgressIndicator(
-                value:       progress,
+                value: progress,
                 strokeWidth: _kRingStrokeWidth,
-                color:       color,
-                strokeCap:   StrokeCap.round,
+                color: color,
+                strokeCap: StrokeCap.round,
               ),
               // Centre: value display
               Text(
@@ -177,7 +178,7 @@ class _ProgressRing extends StatelessWidget {
         Text(
           label,
           style: AppTypography.helper.copyWith(
-            color:      AppColors.textSecondary,
+            color: AppColors.textSecondary,
             fontWeight: FontWeight.w500,
           ),
         ),

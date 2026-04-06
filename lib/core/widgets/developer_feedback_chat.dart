@@ -83,7 +83,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
-import '../theme/app_theme.dart';
+import '../style/app_theme.dart';
+import '../style/app_decorations.dart';
 import 'app_fab.dart'; // for kFabSize — used for send button border-radius
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -37,9 +37,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/maps/app_map_widget.dart';
 import '../../core/navigation/app_nav.dart';
-import '../../core/theme/app_theme.dart';
-import '../../core/theme/app_branding.dart';
-import '../../core/theme/app_background.dart';
+import '../../core/style/app_theme.dart';
+import '../../core/style/app_canvas.dart';
+import '../../core/style/app_decorations.dart';
 import '../../core/widgets/app_fab.dart';
 import '../auth/providers/auth_providers.dart';
 import './providers/home_providers.dart';
@@ -120,7 +120,7 @@ class _ScreenBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return AppBackground(
+    return AppCanvas(
       type:          BackgroundType.meshParticle,
       particleStyle: ParticleStyle.drift,
       gradientStyle: GradientStyle.pulse,

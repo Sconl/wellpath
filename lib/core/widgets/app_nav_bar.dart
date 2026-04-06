@@ -37,8 +37,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../theme/app_branding.dart';
-import '../theme/app_theme.dart';
+import '../style/app_branding.dart';
+import '../style/app_theme.dart';
+import '../style/app_decorations.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG BLOCK
@@ -66,7 +67,6 @@ const String _kProfileTooltipDefault = 'Profile & Settings';
 // END CONFIG BLOCK
 // ─────────────────────────────────────────────────────────────────────────────
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // AppNavItem — data class for a single nav link
 // ─────────────────────────────────────────────────────────────────────────────
@@ -76,7 +76,6 @@ class AppNavItem {
   final String route;
   const AppNavItem({required this.label, required this.route});
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AppNavBar — the reusable top navigation bar
@@ -103,9 +102,9 @@ class AppNavBar extends StatelessWidget {
     required this.ctaLabel,
     required this.onCta,
     this.onProfileTap,
-    this.profileIcon    = Icons.person_outline,
+    this.profileIcon = Icons.person_outline,
     this.profileTooltip = _kProfileTooltipDefault,
-    this.logoSize       = LogoSize.lg,
+    this.logoSize = LogoSize.lg,
   });
 
   @override
@@ -113,13 +112,12 @@ class AppNavBar extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-
         // ── Brand logo — always top-left ────────────────────────────────────
         MouseRegion(
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
             onTap: () => context.go('/landing'),
-            child: BrandLogo(size: logoSize),
+            child: BrandLogo(fallbackSize: logoSize),
           ),
         ),
 
@@ -127,12 +125,10 @@ class AppNavBar extends StatelessWidget {
         Expanded(
           child: Center(
             child: Wrap(
-              alignment:          WrapAlignment.center,
+              alignment: WrapAlignment.center,
               crossAxisAlignment: WrapCrossAlignment.center,
-              spacing:            _kNavItemSpacing,
-              children:           navItems
-                  .map((item) => _NavItem(item: item))
-                  .toList(),
+              spacing: _kNavItemSpacing,
+              children: navItems.map((item) => _NavItem(item: item)).toList(),
             ),
           ),
         ),
@@ -144,17 +140,15 @@ class AppNavBar extends StatelessWidget {
         if (onProfileTap != null) ...[
           const SizedBox(width: _kCtaProfileGap),
           _ProfileCircle(
-            icon:      profileIcon,
-            tooltip:   profileTooltip,
+            icon: profileIcon,
+            tooltip: profileTooltip,
             onPressed: onProfileTap!,
           ),
         ],
-
       ],
     );
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // _NavItem — a single center nav link
@@ -189,23 +183,22 @@ class _NavItemState extends State<_NavItem> {
     // Use a concrete fontSize here rather than AppTypography.body() to avoid
     // a GoogleFonts call in the StatelessWidget const context. The font family
     // is set by the MaterialApp textTheme — which already applies BrandCopy.fontFamily.
-    fontSize:   14,
+    fontSize: 14,
     fontWeight: FontWeight.w600,
-    height:     1.0,
+    height: 1.0,
   );
 
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      cursor:  SystemMouseCursors.click,
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
-      onExit:  (_) => setState(() => _hovered = false),
+      onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: () => context.push(widget.item.route),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-
             // ── Label text — solid or gradient ────────────────────────────
             AnimatedSwitcher(
               duration: AppDurations.fast,
@@ -221,11 +214,11 @@ class _NavItemState extends State<_NavItem> {
                   // The child Text must use color: Colors.white — this is the
                   // "source" that gets replaced by the gradient shader.
                   ? ShaderMask(
-                      key:  const ValueKey('gradient'),
+                      key: const ValueKey('gradient'),
                       shaderCallback: (bounds) =>
                           AppGradients.button.createShader(
-                            Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-                          ),
+                        Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                      ),
                       blendMode: BlendMode.srcIn,
                       child: Text(
                         widget.item.label,
@@ -234,9 +227,10 @@ class _NavItemState extends State<_NavItem> {
                     )
                   // Resting state: plain text in textSecondary
                   : Text(
-                      key:   const ValueKey('normal'),
+                      key: const ValueKey('normal'),
                       widget.item.label,
-                      style: _baseStyle.copyWith(color: AppColors.textSecondary),
+                      style:
+                          _baseStyle.copyWith(color: AppColors.textSecondary),
                     ),
             ),
 
@@ -246,26 +240,24 @@ class _NavItemState extends State<_NavItem> {
             const SizedBox(height: 3),
             AnimatedContainer(
               duration: AppDurations.fast,
-              curve:    Curves.easeOut,
-              height:   1.5,
-              width:    _hovered ? 36 : 0,
+              curve: Curves.easeOut,
+              height: 1.5,
+              width: _hovered ? 36 : 0,
               // ShaderDecoration for the underline to match the text gradient.
               // We use a BoxDecoration with gradient instead of a solid color
               // so the underline matches the text gradient exactly.
               decoration: BoxDecoration(
-                gradient:     _hovered ? AppGradients.button : null,
-                color:        _hovered ? null : Colors.transparent,
+                gradient: _hovered ? AppGradients.button : null,
+                color: _hovered ? null : Colors.transparent,
                 borderRadius: BorderRadius.circular(1),
               ),
             ),
-
           ],
         ),
       ),
     );
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // _NavCta — gradient CTA button with hover animation
@@ -287,38 +279,43 @@ class _NavCtaState extends State<_NavCta> {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      cursor:  SystemMouseCursors.click,
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
-      onExit:  (_) => setState(() {
+      onExit: (_) => setState(() {
         _hovered = false;
         _pressed = false;
       }),
       child: GestureDetector(
-        onTapDown:   (_) => setState(() => _pressed = true),
-        onTapUp:     (_) { setState(() => _pressed = false); widget.onPressed(); },
-        onTapCancel: ()  => setState(() => _pressed = false),
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapUp: (_) {
+          setState(() => _pressed = false);
+          widget.onPressed();
+        },
+        onTapCancel: () => setState(() => _pressed = false),
         child: AnimatedScale(
           duration: AppDurations.fast,
-          curve:    Curves.easeOutBack,
-          scale:    _pressed ? 0.96 : 1.0,
+          curve: Curves.easeOutBack,
+          scale: _pressed ? 0.96 : 1.0,
           child: AnimatedContainer(
             duration: AppDurations.fast,
             padding: EdgeInsets.symmetric(
               horizontal: AppSpacing.xxl - AppSpacing.md,
-              vertical:   AppSpacing.sm + 6,
+              vertical: AppSpacing.sm + 6,
             ),
             decoration: BoxDecoration(
-              gradient:     _hovered ? AppGradients.buttonHover : AppGradients.button,
+              gradient:
+                  _hovered ? AppGradients.buttonHover : AppGradients.button,
               borderRadius: AppRadius.pillBR,
-              boxShadow:    _hovered ? AppShadows.buttonGlowHover : AppShadows.buttonGlow,
+              boxShadow:
+                  _hovered ? AppShadows.buttonGlowHover : AppShadows.buttonGlow,
             ),
             child: Text(
               widget.label,
               style: AppTypography.button.copyWith(
-                fontSize:      _kCtaFontSize,
-                fontWeight:    FontWeight.w800,
+                fontSize: _kCtaFontSize,
+                fontWeight: FontWeight.w800,
                 letterSpacing: 0.5,
-                color:         AppColors.onPrimary,
+                color: AppColors.onPrimary,
               ),
             ),
           ),
@@ -327,7 +324,6 @@ class _NavCtaState extends State<_NavCta> {
     );
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // _ProfileCircle — circular profile/settings icon, rightmost in AppNavBar
@@ -343,7 +339,8 @@ class _ProfileCircle extends StatefulWidget {
   final IconData icon;
   final String tooltip;
   final VoidCallback onPressed;
-  const _ProfileCircle({required this.icon, required this.tooltip, required this.onPressed});
+  const _ProfileCircle(
+      {required this.icon, required this.tooltip, required this.onPressed});
 
   @override
   State<_ProfileCircle> createState() => _ProfileCircleState();
@@ -356,51 +353,58 @@ class _ProfileCircleState extends State<_ProfileCircle> {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message:        widget.tooltip,
-      preferBelow:    true,
+      message: widget.tooltip,
+      preferBelow: true,
       verticalOffset: _kProfileSize / 2 + 10,
-      waitDuration:   const Duration(milliseconds: 800),
+      waitDuration: const Duration(milliseconds: 800),
       child: MouseRegion(
-        cursor:  SystemMouseCursors.click,
+        cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _hovered = true),
-        onExit:  (_) => setState(() {
+        onExit: (_) => setState(() {
           _hovered = false;
           _pressed = false;
         }),
         child: GestureDetector(
-          onTapDown:   (_) => setState(() => _pressed = true),
-          onTapUp:     (_) { setState(() => _pressed = false); widget.onPressed(); },
-          onTapCancel: ()  => setState(() => _pressed = false),
+          onTapDown: (_) => setState(() => _pressed = true),
+          onTapUp: (_) {
+            setState(() => _pressed = false);
+            widget.onPressed();
+          },
+          onTapCancel: () => setState(() => _pressed = false),
           child: AnimatedScale(
             duration: AppDurations.fast,
-            curve:    Curves.easeOutBack,
-            scale:    _pressed ? 0.90 : 1.0,
+            curve: Curves.easeOutBack,
+            scale: _pressed ? 0.90 : 1.0,
             child: AnimatedContainer(
               duration: AppDurations.fast,
-              curve:    Curves.easeOut,
-              width:    _kProfileSize,
-              height:   _kProfileSize,
+              curve: Curves.easeOut,
+              width: _kProfileSize,
+              height: _kProfileSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: _hovered
                     ? AppColors.tint10(AppColors.primary)
                     : AppColors.surface,
                 border: Border.all(
-                  color: _hovered ? AppColors.borderFocused : AppColors.borderStrong,
+                  color: _hovered
+                      ? AppColors.borderFocused
+                      : AppColors.borderStrong,
                   width: _hovered ? 1.5 : 1.0,
                 ),
                 boxShadow: _hovered
-                    ? [BoxShadow(
-                        color:        AppColors.primary.withValues(alpha: 0.18),
-                        blurRadius:   12,
-                        spreadRadius: 1,
-                      )]
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.18),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        )
+                      ]
                     : [],
               ),
               child: Center(
                 child: Icon(
                   widget.icon,
-                  size:  _kProfileIconSize,
+                  size: _kProfileIconSize,
                   color: _hovered ? AppColors.primary : AppColors.textSecondary,
                 ),
               ),

@@ -21,7 +21,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_theme.dart';
+import '../../../core/style/app_theme.dart';
+import '../../../core/style/app_decorations.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../wellness/data/wellness_log_model.dart';
 import '../providers/home_providers.dart';
@@ -31,42 +32,42 @@ import '../providers/home_providers.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Sheet layout ──
-const double _kSheetPadding   = 24.0;
-const double _kHandleWidth    = 40.0;
-const double _kHandleHeight   = 4.0;
-const double _kSaveButtonH    = 50.0;
-const double _kSheetRadius    = 24.0;
+const double _kSheetPadding = 24.0;
+const double _kHandleWidth = 40.0;
+const double _kHandleHeight = 4.0;
+const double _kSaveButtonH = 50.0;
+const double _kSheetRadius = 24.0;
 
 // ── Per-type slider config ──
 // Step size drives the slider divisions. Keep steps coarse enough that a
 // finger can land accurately on a touch screen.
 const _kTypeConfigs = <WellnessType, _SliderConfig>{
   WellnessType.workout: _SliderConfig(
-    icon:       Icons.fitness_center_rounded,
-    label:      'Log Workout',
-    unit:       'minutes',
-    min:        5.0,
-    max:        180.0,
+    icon: Icons.fitness_center_rounded,
+    label: 'Log Workout',
+    unit: 'minutes',
+    min: 5.0,
+    max: 180.0,
     defaultVal: 30.0,
-    step:       5.0,
+    step: 5.0,
   ),
   WellnessType.water: _SliderConfig(
-    icon:       Icons.water_drop_rounded,
-    label:      'Log Water',
-    unit:       'glasses',
-    min:        1.0,
-    max:        16.0,
+    icon: Icons.water_drop_rounded,
+    label: 'Log Water',
+    unit: 'glasses',
+    min: 1.0,
+    max: 16.0,
     defaultVal: 1.0,
-    step:       1.0,
+    step: 1.0,
   ),
   WellnessType.sleep: _SliderConfig(
-    icon:       Icons.bedtime_rounded,
-    label:      'Log Sleep',
-    unit:       'hours',
-    min:        1.0,
-    max:        12.0,
+    icon: Icons.bedtime_rounded,
+    label: 'Log Sleep',
+    unit: 'hours',
+    min: 1.0,
+    max: 12.0,
     defaultVal: 7.0,
-    step:       0.5,   // half-hour precision for sleep is practical
+    step: 0.5, // half-hour precision for sleep is practical
   ),
 };
 
@@ -85,8 +86,8 @@ class QuickLogSheet extends ConsumerStatefulWidget {
 
 class _QuickLogSheetState extends ConsumerState<QuickLogSheet> {
   late double _value;
-  bool        _loading = false;
-  String?     _error;
+  bool _loading = false;
+  String? _error;
 
   _SliderConfig get _config => _kTypeConfigs[widget.type]!;
 
@@ -98,26 +99,26 @@ class _QuickLogSheetState extends ConsumerState<QuickLogSheet> {
 
   Future<void> _save() async {
     final uid = ref.read(authStateProvider).value?.uid;
-    if (uid == null) return;  // should be unreachable behind the auth guard
+    if (uid == null) return; // should be unreachable behind the auth guard
 
     setState(() {
       _loading = true;
-      _error   = null;
+      _error = null;
     });
 
     try {
       await ref.read(wellnessLogRepositoryProvider).addLog(
-        uid:   uid,
-        type:  widget.type,
-        value: _value,
-      );
+            uid: uid,
+            type: widget.type,
+            value: _value,
+          );
       // Pop before setState — widget may be gone already
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       // Don't log the full exception to the UI — no stack traces for users.
       setState(() {
         _loading = false;
-        _error   = 'Failed to save. Please try again.';
+        _error = 'Failed to save. Please try again.';
       });
     }
   }
@@ -134,25 +135,24 @@ class _QuickLogSheetState extends ConsumerState<QuickLogSheet> {
         _kSheetPadding + bottomInset,
       ),
       decoration: BoxDecoration(
-        color:        AppColors.surface,
+        color: AppColors.surface,
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(_kSheetRadius),
         ),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
-        mainAxisSize:      MainAxisSize.min,
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           // ── Drag handle ───────────────────────────────────────────────
           Center(
             child: Container(
-              width:  _kHandleWidth,
+              width: _kHandleWidth,
               height: _kHandleHeight,
               margin: const EdgeInsets.only(bottom: 20),
               decoration: BoxDecoration(
-                color:        AppColors.border,
+                color: AppColors.border,
                 borderRadius: BorderRadius.circular(_kHandleHeight / 2),
               ),
             ),
@@ -178,11 +178,11 @@ class _QuickLogSheetState extends ConsumerState<QuickLogSheet> {
               text: TextSpan(
                 children: [
                   TextSpan(
-                    text:  _displayValue(),
+                    text: _displayValue(),
                     style: AppTypography.h1.copyWith(color: AppColors.primary),
                   ),
                   TextSpan(
-                    text:  '  ${_config.unit}',
+                    text: '  ${_config.unit}',
                     style: AppTypography.h4.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -197,16 +197,16 @@ class _QuickLogSheetState extends ConsumerState<QuickLogSheet> {
           // ── Slider ────────────────────────────────────────────────────
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              activeTrackColor:   AppColors.primary,
-              inactiveTrackColor: AppColors.primary.withOpacity(0.12),
-              thumbColor:         AppColors.primary,
-              overlayColor:       AppColors.primary.withOpacity(0.10),
-              trackHeight:        4,
+              activeTrackColor: AppColors.primary,
+              inactiveTrackColor: AppColors.primary.withValues(alpha: 0.12),
+              thumbColor: AppColors.primary,
+              overlayColor: AppColors.primary.withValues(alpha: 0.10),
+              trackHeight: 4,
             ),
             child: Slider(
-              value:     _value,
-              min:       _config.min,
-              max:       _config.max,
+              value: _value,
+              min: _config.min,
+              max: _config.max,
               // divisions drives snap-to-step behaviour — critical for
               // usability on mobile (no free-dragging to an arbitrary float)
               divisions: ((_config.max - _config.min) / _config.step).round(),
@@ -241,9 +241,9 @@ class _QuickLogSheetState extends ConsumerState<QuickLogSheet> {
           // ── Error banner (only shown on write failure) ─────────────────
           if (_error != null) ...[
             Container(
-              width:   double.infinity,
+              width: double.infinity,
               padding: const EdgeInsets.all(12),
-              margin:  const EdgeInsets.only(bottom: 16),
+              margin: const EdgeInsets.only(bottom: 16),
               decoration: AppDecorations.errorBanner,
               child: Text(
                 _error!,
@@ -254,9 +254,9 @@ class _QuickLogSheetState extends ConsumerState<QuickLogSheet> {
 
           // ── Save button ────────────────────────────────────────────────
           SizedBox(
-            width:  double.infinity,
+            width: double.infinity,
             height: _kSaveButtonH,
-            child:  _loading
+            child: _loading
                 ? Center(
                     child: CircularProgressIndicator(color: AppColors.primary),
                   )
@@ -308,18 +308,19 @@ class _GradientSaveButtonState extends State<_GradientSaveButton> {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter:  (_) => setState(() => _hovered = true),
-      onExit:   (_) => setState(() => _hovered = false),
-      cursor:   SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
-          duration:  AppDurations.fast,
+          duration: AppDurations.fast,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            gradient:     _hovered ? AppGradients.buttonHover : AppGradients.button,
+            gradient: _hovered ? AppGradients.buttonHover : AppGradients.button,
             borderRadius: AppRadius.pillBR,
-            boxShadow:    _hovered ? AppShadows.buttonGlowHover : AppShadows.buttonGlow,
+            boxShadow:
+                _hovered ? AppShadows.buttonGlowHover : AppShadows.buttonGlow,
           ),
           child: Text('Save Log', style: AppTypography.button),
         ),
@@ -334,12 +335,12 @@ class _GradientSaveButtonState extends State<_GradientSaveButton> {
 
 class _SliderConfig {
   final IconData icon;
-  final String   label;
-  final String   unit;
-  final double   min;
-  final double   max;
-  final double   defaultVal;
-  final double   step;
+  final String label;
+  final String unit;
+  final double min;
+  final double max;
+  final double defaultVal;
+  final double step;
 
   const _SliderConfig({
     required this.icon,

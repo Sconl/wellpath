@@ -18,7 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/maps/app_map_widget.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../core/style/app_theme.dart';
 import '../../../core/navigation/app_nav.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../data/place_model.dart';

@@ -56,7 +56,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import '../theme/app_theme.dart';
+import '../style/app_theme.dart';
+import '../style/app_decorations.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG BLOCK
@@ -113,7 +114,6 @@ const Duration kFabTooltipWait = Duration(milliseconds: 1400);
 // END CONFIG BLOCK
 // ─────────────────────────────────────────────────────────────────────────────
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // AppFab
 // ─────────────────────────────────────────────────────────────────────────────
@@ -161,34 +161,37 @@ class _AppFabState extends State<AppFab> {
     // metrics which are narrower than Poppins — leading to the label clipping.
     // _kLabelMeasurementBuffer compensates for this delta.
     final tp = TextPainter(
-      text:          TextSpan(text: label, style: AppTypography.buttonSm),
-      maxLines:      1,
+      text: TextSpan(text: label, style: AppTypography.buttonSm),
+      maxLines: 1,
       textDirection: TextDirection.ltr,
     )..layout();
-    return kFabSize
-        + kFabLabelLeadingPad
-        + tp.width
-        + kFabLabelTrailingPad
-        + _kLabelMeasurementBuffer;
+    return kFabSize +
+        kFabLabelLeadingPad +
+        tp.width +
+        kFabLabelTrailingPad +
+        _kLabelMeasurementBuffer;
   }
 
   void _setHovered(bool hovered) {
     // Defer to avoid re-entrant setState during mouse event processing —
     // fixes the mouse_tracker.dart:199 assertion.
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() {
-        _hovered = hovered;
-        if (!hovered) _pressed = false;
-      });
+      if (mounted) {
+        setState(() {
+          _hovered = hovered;
+          if (!hovered) _pressed = false;
+        });
+      }
     });
   }
 
   void _handleTap(BuildContext context) {
     if (widget.sheetBuilder != null) {
       showModalBottomSheet(
-        context:            context,
+        context: context,
         isScrollControlled: true,
-        backgroundColor:    widget.sheetBackgroundColor ?? AppColors.lightBackground,
+        backgroundColor:
+            widget.sheetBackgroundColor ?? AppColors.lightBackground,
         shape: RoundedRectangleBorder(borderRadius: AppRadius.modalTopBR),
         builder: widget.sheetBuilder!,
       );
@@ -198,15 +201,15 @@ class _AppFabState extends State<AppFab> {
   }
 
   BoxDecoration _decoration(bool hovered, bool pressed) => BoxDecoration(
-    color:        widget.backgroundColor,
-    gradient:     widget.backgroundColor != null
-        ? null
-        : (hovered ? AppGradients.buttonHover : AppGradients.button),
-    borderRadius: BorderRadius.circular(kFabSize / 2),
-    boxShadow:    pressed
-        ? []
-        : (hovered ? AppShadows.buttonGlowHover : AppShadows.buttonGlow),
-  );
+        color: widget.backgroundColor,
+        gradient: widget.backgroundColor != null
+            ? null
+            : (hovered ? AppGradients.buttonHover : AppGradients.button),
+        borderRadius: BorderRadius.circular(kFabSize / 2),
+        boxShadow: pressed
+            ? []
+            : (hovered ? AppShadows.buttonGlowHover : AppShadows.buttonGlow),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -214,51 +217,50 @@ class _AppFabState extends State<AppFab> {
 
     return Semantics(
       button: true,
-      label:  widget.tooltip,
+      label: widget.tooltip,
       child: Tooltip(
-        message:        widget.tooltip,
-        preferBelow:    false,
+        message: widget.tooltip,
+        preferBelow: false,
         verticalOffset: kFabSize / 2 + 12,
-        waitDuration:   kFabTooltipWait,
+        waitDuration: kFabTooltipWait,
         child: MouseRegion(
-          cursor:  SystemMouseCursors.click,
+          cursor: SystemMouseCursors.click,
           onEnter: (_) => _setHovered(true),
-          onExit:  (_) => _setHovered(false),
+          onExit: (_) => _setHovered(false),
           child: GestureDetector(
-            behavior:    HitTestBehavior.opaque,
-            onTapDown:   (_) => setState(() => _pressed = true),
-            onTapUp:     (_) {
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (_) => setState(() => _pressed = true),
+            onTapUp: (_) {
               setState(() => _pressed = false);
               _handleTap(context);
             },
             onTapCancel: () => setState(() => _pressed = false),
             child: AnimatedContainer(
-              duration:     kFabHoverDuration,
-              curve:        kFabHoverCurve,
-              height:       kFabSize,
-              width:        _hovered ? _expandedWidth : kFabSize,
-              decoration:   _decoration(_hovered, _pressed),
+              duration: kFabHoverDuration,
+              curve: kFabHoverCurve,
+              height: kFabSize,
+              width: _hovered ? _expandedWidth : kFabSize,
+              decoration: _decoration(_hovered, _pressed),
               clipBehavior: Clip.antiAlias,
               child: Row(
                 // mainAxisSize.max fills the container exactly at every
                 // animation frame — prevents overflow during the transition.
-                mainAxisSize:       MainAxisSize.max,
+                mainAxisSize: MainAxisSize.max,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-
                   // ── Icon — LEFT side ─────────────────────────────────────
                   // Fixed kFabSize × kFabSize box. As Positioned.right anchors
                   // the right edge, the container expands LEFTWARD — this icon
                   // box moves left with the growing left edge.
                   SizedBox(
-                    width:  kFabSize,
+                    width: kFabSize,
                     height: kFabSize,
                     child: Center(
                       child: AnimatedScale(
                         duration: kFabHoverDuration,
-                        curve:    Curves.easeOutBack,
-                        scale:    _pressed ? kFabPressScale : 1.0,
-                        child:    Icon(widget.icon, size: kFabIconSize, color: fg),
+                        curve: Curves.easeOutBack,
+                        scale: _pressed ? kFabPressScale : 1.0,
+                        child: Icon(widget.icon, size: kFabIconSize, color: fg),
                       ),
                     ),
                   ),
@@ -270,16 +272,16 @@ class _AppFabState extends State<AppFab> {
                   Expanded(
                     child: AnimatedOpacity(
                       duration: kFabHoverDuration,
-                      curve:    kFabHoverCurve,
-                      opacity:  _hovered ? 1.0 : 0.0,
+                      curve: kFabHoverCurve,
+                      opacity: _hovered ? 1.0 : 0.0,
                       child: Padding(
                         padding: const EdgeInsets.only(
-                          left:  kFabLabelLeadingPad,
+                          left: kFabLabelLeadingPad,
                           right: kFabLabelTrailingPad,
                         ),
                         child: Text(
                           widget.label,
-                          style:    AppTypography.buttonSm.copyWith(color: fg),
+                          style: AppTypography.buttonSm.copyWith(color: fg),
                           maxLines: 1,
                           softWrap: false,
                           overflow: TextOverflow.clip,
@@ -287,7 +289,6 @@ class _AppFabState extends State<AppFab> {
                       ),
                     ),
                   ),
-
                 ],
               ),
             ),
@@ -298,20 +299,20 @@ class _AppFabState extends State<AppFab> {
   }
 }
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // AppFeedbackSheet — simple text-input bottom sheet (non-AI fallback)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const String _kFeedbackTitle    = 'Send a Message';
-const String _kFeedbackSubtitle = 'Share a bug, idea, or anything on your mind.';
-const String _kFeedbackHint     = 'Type your message here...';
-const String _kFeedbackCancel   = 'Cancel';
-const String _kFeedbackSend     = 'Send';
-const String _kFeedbackSuccess  = 'Thanks — message sent.';
-const String _kFeedbackEmpty    = 'Please write a message before sending.';
-const String _kFeedbackError    = 'Something went wrong. Please try again.';
-const int    _kFeedbackMaxLines = 4;
+const String _kFeedbackTitle = 'Send a Message';
+const String _kFeedbackSubtitle =
+    'Share a bug, idea, or anything on your mind.';
+const String _kFeedbackHint = 'Type your message here...';
+const String _kFeedbackCancel = 'Cancel';
+const String _kFeedbackSend = 'Send';
+const String _kFeedbackSuccess = 'Thanks — message sent.';
+const String _kFeedbackEmpty = 'Please write a message before sending.';
+const String _kFeedbackError = 'Something went wrong. Please try again.';
+const int _kFeedbackMaxLines = 4;
 
 class AppFeedbackSheet extends StatefulWidget {
   final String title;
@@ -323,11 +324,11 @@ class AppFeedbackSheet extends StatefulWidget {
 
   const AppFeedbackSheet({
     super.key,
-    this.title       = _kFeedbackTitle,
-    this.subtitle    = _kFeedbackSubtitle,
-    this.inputHint   = _kFeedbackHint,
+    this.title = _kFeedbackTitle,
+    this.subtitle = _kFeedbackSubtitle,
+    this.inputHint = _kFeedbackHint,
     this.cancelLabel = _kFeedbackCancel,
-    this.sendLabel   = _kFeedbackSend,
+    this.sendLabel = _kFeedbackSend,
     this.onSend,
   });
 
@@ -340,7 +341,10 @@ class _AppFeedbackSheetState extends State<AppFeedbackSheet> {
   bool _sending = false;
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleSend() async {
     final msg = _ctrl.text.trim();
@@ -351,7 +355,7 @@ class _AppFeedbackSheetState extends State<AppFeedbackSheet> {
     }
     setState(() => _sending = true);
     final messenger = ScaffoldMessenger.of(context);
-    final nav       = Navigator.of(context);
+    final nav = Navigator.of(context);
     try {
       await widget.onSend?.call(msg);
       nav.pop();
@@ -366,60 +370,80 @@ class _AppFeedbackSheetState extends State<AppFeedbackSheet> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        left:   AppSpacing.md + 4, right: AppSpacing.md + 4,
-        top:    AppSpacing.md + 4,
+        left: AppSpacing.md + 4,
+        right: AppSpacing.md + 4,
+        top: AppSpacing.md + 4,
         bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.md + 4,
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text(widget.title,
-                style: AppTypography.h4.copyWith(color: AppColors.lightTextPrimary)),
+                style: AppTypography.h4
+                    .copyWith(color: AppColors.lightTextPrimary)),
             IconButton(
               onPressed: _sending ? null : () => Navigator.of(context).pop(),
-              icon: Icon(Icons.close, color: AppColors.lightTextSecondary, size: 20),
+              icon: Icon(Icons.close,
+                  color: AppColors.lightTextSecondary, size: 20),
             ),
           ]),
           SizedBox(height: AppSpacing.xs + 2),
           Text(widget.subtitle,
-              style: AppTypography.bodySmall.copyWith(color: AppColors.lightTextSecondary)),
+              style: AppTypography.bodySmall
+                  .copyWith(color: AppColors.lightTextSecondary)),
           SizedBox(height: AppSpacing.md),
           TextField(
-            controller: _ctrl, maxLines: _kFeedbackMaxLines, autofocus: true,
-            style: AppTypography.body.copyWith(color: AppColors.lightTextPrimary),
+            controller: _ctrl,
+            maxLines: _kFeedbackMaxLines,
+            autofocus: true,
+            style:
+                AppTypography.body.copyWith(color: AppColors.lightTextPrimary),
             decoration: InputDecoration(
-              filled: true, fillColor: AppColors.lightSurface,
-              hintText:  widget.inputHint,
-              hintStyle: AppTypography.input.copyWith(color: AppColors.lightTextSecondary),
-              border: OutlineInputBorder(borderRadius: AppRadius.inputBR,
+              filled: true,
+              fillColor: AppColors.lightSurface,
+              hintText: widget.inputHint,
+              hintStyle: AppTypography.input
+                  .copyWith(color: AppColors.lightTextSecondary),
+              border: OutlineInputBorder(
+                  borderRadius: AppRadius.inputBR,
                   borderSide: BorderSide(color: AppColors.lightSurfaceMid)),
-              enabledBorder: OutlineInputBorder(borderRadius: AppRadius.inputBR,
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: AppRadius.inputBR,
                   borderSide: BorderSide(color: AppColors.lightSurfaceMid)),
-              focusedBorder: OutlineInputBorder(borderRadius: AppRadius.inputBR,
-                  borderSide: BorderSide(color: AppColors.lightPrimary, width: 1.5)),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: AppRadius.inputBR,
+                  borderSide:
+                      BorderSide(color: AppColors.lightPrimary, width: 1.5)),
             ),
           ),
           SizedBox(height: AppSpacing.md),
           Row(mainAxisAlignment: MainAxisAlignment.end, children: [
             TextButton(
               onPressed: _sending ? null : () => Navigator.of(context).pop(),
-              child: Text(widget.cancelLabel, style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.lightTextSecondary)),
+              child: Text(widget.cancelLabel,
+                  style: AppTypography.bodySmall
+                      .copyWith(color: AppColors.lightTextSecondary)),
             ),
             SizedBox(width: AppSpacing.sm),
             Container(
               decoration: AppDecorations.primaryButton,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent, shadowColor: Colors.transparent,
-                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm + 3),
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  padding: EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg, vertical: AppSpacing.sm + 3),
                   shape: RoundedRectangleBorder(borderRadius: AppRadius.pillBR),
                 ),
                 onPressed: _sending ? null : _handleSend,
                 child: _sending
-                    ? SizedBox(width: 16, height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary))
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.onPrimary))
                     : Text(widget.sendLabel, style: AppTypography.buttonSm),
               ),
             ),

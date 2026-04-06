@@ -14,8 +14,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/app_background.dart';
+import '../../../core/style/app_theme.dart';
+import '../../../core/style/app_canvas.dart';
+import '../../../core/style/app_decorations.dart';
 import '../providers/auth_providers.dart';
 import 'widgets/auth_widgets.dart';
 
@@ -23,16 +24,15 @@ import 'widgets/auth_widgets.dart';
 // CONFIG BLOCK
 // ─────────────────────────────────────────────────────────────────────────────
 
-const double kLoginBreakpoint    = 840.0;
-const int    kLoginFlexForm      = 4;
-const int    kLoginFlexImage     = 5;
-const double kLoginFormMaxWidth  = 420.0;
-const double kLoginFormPaddingH  = 36.0;
-const double kLoginFormPaddingV  = 48.0;
-const double kLoginLogoSize      = 36.0;
-const double kLoginSubtitleSize  = 14.0;
-const String kLoginGifPath =
-    'animated-gifs/login_digital_screen_male.gif';
+const double kLoginBreakpoint = 840.0;
+const int kLoginFlexForm = 4;
+const int kLoginFlexImage = 5;
+const double kLoginFormMaxWidth = 420.0;
+const double kLoginFormPaddingH = 36.0;
+const double kLoginFormPaddingV = 48.0;
+const double kLoginLogoSize = 36.0;
+const double kLoginSubtitleSize = 14.0;
+const String kLoginGifPath = 'animated-gifs/login_digital_screen_male.gif';
 const double kLoginImagePaddingH = 48.0;
 
 // Set to false before shipping to production.
@@ -50,17 +50,16 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-
-  final _formKey            = GlobalKey<FormState>();
-  final _emailController    = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  bool    _isLoading    = false;
-  bool    _resetSending = false;
+  bool _isLoading = false;
+  bool _resetSending = false;
   String? _errorMessage;
 
   final _emailFocus = FocusNode();
-  final _pwFocus    = FocusNode();
+  final _pwFocus = FocusNode();
 
   @override
   void dispose() {
@@ -73,22 +72,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _isLoading = true; _errorMessage = null; });
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
     try {
       await ref.read(authRepositoryProvider).signIn(
-        email:    _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
       // No context.go() — GoRouter authStateProvider redirect handles navigation.
     } on FirebaseAuthException catch (e) {
       setState(() => _errorMessage = _mapFirebaseError(e.code));
     } catch (e, stack) {
       debugPrint('[LoginScreen] non-Firebase error: $e');
       debugPrint('$stack');
-      setState(() => _errorMessage = kDevMode
-          ? 'DEBUG: $e'
-          : 'Something went wrong. Please try again.');
+      setState(() => _errorMessage =
+          kDevMode ? 'DEBUG: $e' : 'Something went wrong. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -101,7 +102,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           'Enter your email address above, then tap Forgot password.');
       return;
     }
-    setState(() { _resetSending = true; _errorMessage = null; });
+    setState(() {
+      _resetSending = true;
+      _errorMessage = null;
+    });
 
     try {
       await ref.read(authRepositoryProvider).sendPasswordResetEmail(email);
@@ -117,9 +121,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       setState(() => _errorMessage = _mapFirebaseError(e.code));
     } catch (e, stack) {
       debugPrint('[LoginScreen] password reset error: $e\n$stack');
-      setState(() => _errorMessage = kDevMode
-          ? 'DEBUG: $e'
-          : 'Could not send reset email. Try again.');
+      setState(() => _errorMessage =
+          kDevMode ? 'DEBUG: $e' : 'Could not send reset email. Try again.');
     } finally {
       if (mounted) setState(() => _resetSending = false);
     }
@@ -128,29 +131,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String _mapFirebaseError(String code) {
     switch (code) {
       case 'user-not-found':
-      case 'invalid-credential':     return 'No account found with these credentials.';
-      case 'wrong-password':         return 'Incorrect password. Please try again.';
-      case 'invalid-email':          return 'Please enter a valid email address.';
-      case 'too-many-requests':      return 'Too many failed attempts. Wait a few minutes.';
-      case 'network-request-failed': return 'Connection error. Check your internet.';
-      default:                       return 'Firebase error: $code';
+      case 'invalid-credential':
+        return 'No account found with these credentials.';
+      case 'wrong-password':
+        return 'Incorrect password. Please try again.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'too-many-requests':
+        return 'Too many failed attempts. Wait a few minutes.';
+      case 'network-request-failed':
+        return 'Connection error. Check your internet.';
+      default:
+        return 'Firebase error: $code';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isTwoColumn =
-        MediaQuery.of(context).size.width >= kLoginBreakpoint;
+    final isTwoColumn = MediaQuery.of(context).size.width >= kLoginBreakpoint;
 
     return Scaffold(
-      body: AppBackground(
-        type:          BackgroundType.meshParticle,
+      body: AppCanvas(
+        type: BackgroundType.meshParticle,
         particleStyle: ParticleStyle.drift,
         gradientStyle: GradientStyle.pulse,
         child: SafeArea(
           child: isTwoColumn
               ? _TwoColumnLayout(
-                  formPanel:  _formPanel(),
+                  formPanel: _formPanel(),
                   imagePanel: const _ImagePanel(assetPath: kLoginGifPath),
                 )
               : _SingleColumnLayout(formPanel: _formPanel()),
@@ -166,49 +174,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
             horizontal: kLoginFormPaddingH,
-            vertical:   kLoginFormPaddingV,
+            vertical: kLoginFormPaddingV,
           ),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-
                 const WellPathLogo(fontSize: kLoginLogoSize),
                 SizedBox(height: AppSpacing.xs + 2),
                 Text(
                   'Welcome back',
                   textAlign: TextAlign.center,
                   style: AppTextStyles.authSubheading.copyWith(
-                    fontSize:   kLoginSubtitleSize,
+                    fontSize: kLoginSubtitleSize,
                     fontWeight: FontWeight.w300,
                   ),
                 ),
                 SizedBox(height: AppSpacing.xxl - AppSpacing.md),
-
                 WellPathField(
-                  controller:        _emailController,
-                  label:             'Email',
-                  focusNode:         _emailFocus,
-                  keyboardType:      TextInputType.emailAddress,
-                  textInputAction:   TextInputAction.next,
-                  autofocus:         true,
+                  controller: _emailController,
+                  label: 'Email',
+                  focusNode: _emailFocus,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofocus: true,
                   onEditingComplete: () => _pwFocus.requestFocus(),
                   prefixIcon: const Icon(Icons.email_outlined,
                       color: AppColors.textMuted, size: 20),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Email is required';
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Email is required';
+                    }
                     return null;
                   },
                 ),
                 SizedBox(height: AppSpacing.md),
-
                 WellPathField(
-                  controller:        _passwordController,
-                  label:             'Password',
-                  obscureText:       true,
-                  focusNode:         _pwFocus,
-                  textInputAction:   TextInputAction.done,
+                  controller: _passwordController,
+                  label: 'Password',
+                  obscureText: true,
+                  focusNode: _pwFocus,
+                  textInputAction: TextInputAction.done,
                   onEditingComplete: _submit,
                   prefixIcon: const Icon(Icons.lock_outline,
                       color: AppColors.textMuted, size: 20),
@@ -217,40 +224,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     return null;
                   },
                 ),
-
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: _resetSending ? null : _forgotPassword,
                     style: TextButton.styleFrom(
-                      padding:         const EdgeInsets.only(top: 4),
-                      tapTargetSize:   MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.only(top: 4),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       foregroundColor: AppColors.primary,
                     ),
                     child: _resetSending
                         ? SizedBox(
-                            width: 14, height: 14,
+                            width: 14,
+                            height: 14,
                             child: CircularProgressIndicator(
                               strokeWidth: 1.5,
-                              color:       AppColors.primary,
+                              color: AppColors.primary,
                             ),
                           )
                         : Text(
                             'Forgot password?',
                             style: AppTypography.helper.copyWith(
-                              color:      AppColors.primary,
+                              color: AppColors.primary,
                               fontWeight: FontWeight.w400,
                             ),
                           ),
                   ),
                 ),
                 SizedBox(height: AppSpacing.sm),
-
                 if (_errorMessage != null) ...[
                   Container(
                     padding: EdgeInsets.symmetric(
                       horizontal: AppSpacing.sm + 6,
-                      vertical:   AppSpacing.sm + 2,
+                      vertical: AppSpacing.sm + 2,
                     ),
                     decoration: AppDecorations.errorBanner,
                     child: Row(
@@ -274,31 +280,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   SizedBox(height: AppSpacing.sm + 4),
                 ],
-
                 WellPathButton(
-                  label:     'Log In',
+                  label: 'Log In',
                   isLoading: _isLoading,
                   onPressed: _isLoading ? null : _submit,
                 ),
                 SizedBox(height: AppSpacing.md + AppSpacing.xs),
-
                 const WellPathDivider(),
                 SizedBox(height: AppSpacing.md + AppSpacing.xs),
-
                 Center(
                   child: TextButton(
                     onPressed: () => context.go('/signup'),
                     child: RichText(
                       text: TextSpan(children: [
                         TextSpan(
-                          text:  "Don't have an account? ",
-                          style: AppTextStyles.authSubheading.copyWith(fontSize: 13),
+                          text: "Don't have an account? ",
+                          style: AppTextStyles.authSubheading
+                              .copyWith(fontSize: 13),
                         ),
                         TextSpan(
                           text: 'Sign up',
                           style: AppTextStyles.authSubheading.copyWith(
-                            fontSize:   13,
-                            color:      AppColors.primary,
+                            fontSize: 13,
+                            color: AppColors.primary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -306,7 +310,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                 ),
-
               ],
             ),
           ),
@@ -327,9 +330,9 @@ class _TwoColumnLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(children: [
-    Expanded(flex: kLoginFlexForm,  child: formPanel),
-    Expanded(flex: kLoginFlexImage, child: imagePanel),
-  ]);
+        Expanded(flex: kLoginFlexForm, child: formPanel),
+        Expanded(flex: kLoginFlexImage, child: imagePanel),
+      ]);
 }
 
 class _SingleColumnLayout extends StatelessWidget {

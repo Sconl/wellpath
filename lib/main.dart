@@ -20,8 +20,7 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import 'firebase_options.dart';
 import 'core/router/app_router.dart';
-import 'core/theme/app_theme.dart';
-import 'features/discover/providers/discover_providers.dart';
+import 'core/style/app_theme.dart';
 
 // TODO: Move this to secure storage (env/secrets)
 const String kMapboxAccessToken = 'YOUR_MAPBOX_ACCESS_TOKEN';

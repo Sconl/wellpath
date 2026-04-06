@@ -14,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import '../app_map_types.dart';
-import '../../theme/app_theme.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG
@@ -24,12 +23,13 @@ import '../../theme/app_theme.dart';
 // Colors as int — CircleAnnotationOptions.circleColor takes int ARGB.
 // These mirror AppColors.primary and AppColors.secondary without importing
 // app_theme at constant-evaluation time (getters can't be const).
-const int    _kPinColorDefault  = 0xFF00CC66;   // green — matches AppColors.primary
-const int    _kPinColorSelected = 0xFF0099CC;   // blue  — matches AppColors.secondary
-const int    _kPinStrokeColor   = 0xFFFFFFFF;   // white ring
-const double _kPinRadius        = 9.0;
+const int _kPinColorDefault = 0xFF00CC66; // green — matches AppColors.primary
+const int _kPinColorSelected =
+    0xFF0099CC; // blue  — matches AppColors.secondary
+const int _kPinStrokeColor = 0xFFFFFFFF; // white ring
+const double _kPinRadius = 9.0;
 const double _kPinRadiusSelected = 11.0;
-const double _kPinStrokeWidth   = 2.5;
+const double _kPinStrokeWidth = 2.5;
 
 // ── Animation ──
 const int _kFlyDurationMs = 600;
@@ -40,7 +40,7 @@ const int _kFlyDurationMs = 600;
 
 class _MapboxController implements AppMapController {
   final MapboxMap _map;
-  final double    _defaultZoom;
+  final double _defaultZoom;
   CircleAnnotationManager? _circleManager;
 
   _MapboxController(this._map, {required double defaultZoom})
@@ -57,7 +57,7 @@ class _MapboxController implements AppMapController {
     await _map.flyTo(
       CameraOptions(
         center: Point(coordinates: Position(lng, lat)),
-        zoom:   zoom ?? _defaultZoom,
+        zoom: zoom ?? _defaultZoom,
       ),
       MapAnimationOptions(duration: _kFlyDurationMs),
     );
@@ -69,13 +69,15 @@ class _MapboxController implements AppMapController {
     await mgr.deleteAll();
     if (pins.isEmpty) return;
 
-    final options = pins.map((p) => CircleAnnotationOptions(
-      geometry:          Point(coordinates: Position(p.lng, p.lat)),
-      circleRadius:      p.selected ? _kPinRadiusSelected : _kPinRadius,
-      circleColor:       p.selected ? _kPinColorSelected  : _kPinColorDefault,
-      circleStrokeWidth: _kPinStrokeWidth,
-      circleStrokeColor: _kPinStrokeColor,
-    )).toList();
+    final options = pins
+        .map((p) => CircleAnnotationOptions(
+              geometry: Point(coordinates: Position(p.lng, p.lat)),
+              circleRadius: p.selected ? _kPinRadiusSelected : _kPinRadius,
+              circleColor: p.selected ? _kPinColorSelected : _kPinColorDefault,
+              circleStrokeWidth: _kPinStrokeWidth,
+              circleStrokeColor: _kPinStrokeColor,
+            ))
+        .toList();
 
     await mgr.createMulti(options);
   }
@@ -98,7 +100,7 @@ class AppMapWidget extends StatefulWidget {
   final double initialLng;
   final double initialZoom;
   final String styleUri;
-  final List<AppMapPin>              initialPins;
+  final List<AppMapPin> initialPins;
   final void Function(AppMapController)? onMapReady;
 
   const AppMapWidget({
@@ -116,6 +118,7 @@ class AppMapWidget extends StatefulWidget {
 }
 
 class _AppMapWidgetState extends State<AppMapWidget> {
+  // ignore: unused_field
   _MapboxController? _ctrl;
 
   Future<void> _onMapCreated(MapboxMap mapboxMap) async {
@@ -143,8 +146,8 @@ class _AppMapWidgetState extends State<AppMapWidget> {
       key: ValueKey('mapbox-${widget.initialLat}-${widget.initialLng}'),
       styleUri: widget.styleUri,
       cameraOptions: CameraOptions(
-        center: Point(
-            coordinates: Position(widget.initialLng, widget.initialLat)),
+        center:
+            Point(coordinates: Position(widget.initialLng, widget.initialLat)),
         zoom: widget.initialZoom,
       ),
       onMapCreated: _onMapCreated,

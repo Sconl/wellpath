@@ -10,7 +10,7 @@
 
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_theme.dart';
+import '../../../core/style/app_theme.dart';
 import '../data/trainer_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18,13 +18,13 @@ import '../data/trainer_model.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Layout ──
-const double _kCardWidth       = 172.0;
-const double _kPhotoHeight     = 108.0;
-const double _kAvatarRadius    = 28.0;
-const double _kCardPadding     = 10.0;
+const double _kCardWidth = 172.0;
+const double _kPhotoHeight = 108.0;
+const double _kAvatarRadius = 28.0;
+const double _kCardPadding = 10.0;
 
 // ── Specialty chips ──
-const int    _kMaxSpecialtyChips = 2;    // avoids overflow in narrow cards
+const int _kMaxSpecialtyChips = 2; // avoids overflow in narrow cards
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TrainerCard
@@ -47,9 +47,9 @@ class TrainerCard extends StatelessWidget {
       child: Container(
         width: _kCardWidth,
         decoration: BoxDecoration(
-          color:        AppColors.surface,
+          color: AppColors.surface,
           borderRadius: AppRadius.cardBR,
-          border:       Border.all(color: AppColors.border),
+          border: Border.all(color: AppColors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,21 +62,21 @@ class TrainerCard extends StatelessWidget {
               child: trainer.photoUrl != null && trainer.photoUrl!.isNotEmpty
                   ? Image.network(
                       trainer.photoUrl!,
-                      width:  _kCardWidth,
+                      width: _kCardWidth,
                       height: _kPhotoHeight,
-                      fit:    BoxFit.cover,
+                      fit: BoxFit.cover,
                       // Network failures should never leave a blank box —
                       // the initials fallback keeps the card usable.
                       errorBuilder: (_, __, ___) => _InitialsFallback(
                         trainer: trainer,
-                        width:   _kCardWidth,
-                        height:  _kPhotoHeight,
+                        width: _kCardWidth,
+                        height: _kPhotoHeight,
                       ),
                     )
                   : _InitialsFallback(
                       trainer: trainer,
-                      width:   _kCardWidth,
-                      height:  _kPhotoHeight,
+                      width: _kCardWidth,
+                      height: _kPhotoHeight,
                     ),
             ),
 
@@ -98,7 +98,7 @@ class TrainerCard extends StatelessWidget {
                   if (trainer.specialties.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Wrap(
-                      spacing:    4,
+                      spacing: 4,
                       runSpacing: 4,
                       children: trainer.specialties
                           .take(_kMaxSpecialtyChips)
@@ -132,8 +132,8 @@ class TrainerCard extends StatelessWidget {
 
 class _InitialsFallback extends StatelessWidget {
   final TrainerModel trainer;
-  final double       width;
-  final double       height;
+  final double width;
+  final double height;
 
   const _InitialsFallback({
     required this.trainer,
@@ -144,13 +144,13 @@ class _InitialsFallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width:  width,
+      width: width,
       height: height,
-      color:  AppColors.primary.withOpacity(0.06),
-      child:  Center(
+      color: AppColors.primary.withValues(alpha: 0.06),
+      child: Center(
         child: CircleAvatar(
-          radius:          _kAvatarRadius,
-          backgroundColor: AppColors.primary.withOpacity(0.15),
+          radius: _kAvatarRadius,
+          backgroundColor: AppColors.primary.withValues(alpha: 0.15),
           child: Text(
             trainer.initials,
             style: AppTypography.h4.copyWith(color: AppColors.primary),
@@ -174,7 +174,7 @@ class _SpecialtyChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color:        AppColors.primary.withOpacity(0.12),
+        color: AppColors.primary.withValues(alpha: 0.12),
         borderRadius: AppRadius.inputBR,
       ),
       child: Text(

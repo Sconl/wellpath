@@ -20,38 +20,62 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # ── Firebase ──────────────────────────────────────────────────────────────
-  firebase_core: ^2.27.1          # must be first; initialises the Firebase app
-  firebase_auth: ^4.17.9          # FIX: was missing → caused uri_does_not_exist
-  cloud_firestore: ^4.15.9        # Firestore — user docs, bookings, wellness logs
-  firebase_messaging: ^14.7.19    # FCM push notifications (Week 6)
-  firebase_analytics: ^10.8.9     # Analytics events (Week 8)
-  firebase_crashlytics: ^3.4.19   # Crash reporting (Week 8)
-  firebase_performance: ^0.9.3+19 # Performance monitoring (Week 8)
-  google_maps_flutter: ^2.7.0
-  geolocator: ^12.0.0
-  http: ^1.2.0
-  url_launcher: ^6.3.0
-  flutter_map: ^6.0.0
-  latlong2: ^0.9.0
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Backend & Cloud Services
+  # ─────────────────────────────────────────────────────────────────────────────
+  firebase_core: ^4.6.0           # Core Firebase initialization (must be first)
+  firebase_auth: ^6.3.0           # User authentication and session management
+  cloud_firestore: ^6.2.0         # Realtime database for users, bookings, wellness logs
+  firebase_messaging: ^16.1.3     # Cloud Messaging for push notifications
+  firebase_analytics: ^12.2.0     # Usage analytics tracking
+  firebase_crashlytics: ^5.1.0    # Crash reporting and error tracking
+  firebase_performance: ^0.11.2   # Performance monitoring
 
-  # ── State management ──────────────────────────────────────────────────────
-  flutter_riverpod: ^2.5.1        # FIX: was missing → caused uri_does_not_exist
+  # ─────────────────────────────────────────────────────────────────────────────
+  # State Management
+  # ─────────────────────────────────────────────────────────────────────────────
+  flutter_riverpod: ^2.6.1        # Reactive state management (kept at 2.x for compatibility)
 
-  # ── Navigation ────────────────────────────────────────────────────────────
-  go_router: ^13.2.1              # FIX: was missing → caused uri_does_not_exist
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Routing & Navigation
+  # ─────────────────────────────────────────────────────────────────────────────
+  go_router: ^14.0.0              # Declarative routing and deep linking
 
-  # ── UI / Typography ───────────────────────────────────────────────────────
-  google_fonts: ^6.2.1            # Poppins — already used in landing_page.dart
+  # ─────────────────────────────────────────────────────────────────────────────
+  # UI & Design System
+  # ─────────────────────────────────────────────────────────────────────────────
+  google_fonts: ^8.0.2            # Google Fonts typography support (Poppins, etc.)
+  flutter_svg: ^2.0.7             # SVG asset rendering
 
-  google_generative_ai: ^0.4.6
-  mapbox_maps_flutter: ^2.0.0
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Location, Maps & Geolocation
+  # ─────────────────────────────────────────────────────────────────────────────
+  geolocator: ^12.0.0             # Device location services
+  google_maps_flutter: ^2.17.0    # Google Maps integration (mobile/web)
+  mapbox_maps_flutter: ^2.0.0     # Mapbox Maps for detailed map rendering
+  flutter_map: ^8.2.2             # OpenStreetMap tiles for web fallback
+  latlong2: ^0.9.0                # Latitude/longitude coordinate handling
 
-  
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Networking & Utilities
+  # ─────────────────────────────────────────────────────────────────────────────
+  http: ^1.2.0                    # HTTP client for API requests
+  url_launcher: ^6.3.0            # Open URLs and handle deep links
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # AI & Machine Learning
+  # ─────────────────────────────────────────────────────────────────────────────
+  google_generative_ai: ^0.4.6    # Google AI/Gemini API integration
+
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Development & Testing
+  # ─────────────────────────────────────────────────────────────────────────────
+  flutter_lints: ^6.0.0           # Lint rules for Dart code quality
 
 flutter:
   uses-material-design: true

@@ -1,4 +1,4 @@
-// lib/core/theme/app_background.dart
+// lib/core/style/app_canvas.dart
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CHANGELOG
@@ -10,19 +10,21 @@
 //   • Added GradientStyle enum — 4 gradient animation modes
 //   • Config block added at top per codespace Rule 7
 //   • Added showParticles and showGradient boolean toggles for per-page control
-//   • Confirmed compatible with new app_branding → app_theme dependency chain.
-//     This file imports only app_theme.dart — no changes required. AppColors
-//     and AppGradients resolve correctly because app_theme.dart now reads
-//     BrandColors seeds from app_branding.dart upstream.
+//   • Confirmed compatible with app_branding → app_theme dependency chain.
+//     This file imports only app_theme.dart — AppColors and AppGradients
+//     resolve correctly because app_theme.dart reads BrandColors upstream.
+//   • File renamed: app_background.dart → app_canvas.dart
+//   • Class renamed: AppBackground → AppCanvas (matches file name)
+//   • File path updated: lib/core/theme/ → lib/core/style/
 // ─────────────────────────────────────────────────────────────────────────────
 
 // HOW TO USE:
 //
 //   Simplest:
-//     AppBackground(child: YourScreen())
+//     AppCanvas(child: YourScreen())
 //
 //   Full options:
-//     AppBackground(
+//     AppCanvas(
 //       type:          BackgroundType.meshParticle,
 //       particleStyle: ParticleStyle.drift,
 //       gradientStyle: GradientStyle.pulse,
@@ -30,15 +32,15 @@
 //     )
 //
 //   Per-page motion toggles:
-//     AppBackground(showParticles: false, child: ...)        // gradient only
-//     AppBackground(showGradient: false, child: ...)         // solid base + particles
-//     AppBackground(showParticles: false, showGradient: false, child: ...) // plain branded bg
+//     AppCanvas(showParticles: false, child: ...)        // gradient only
+//     AppCanvas(showGradient: false, child: ...)         // solid base + particles
+//     AppCanvas(showParticles: false, showGradient: false, child: ...) // plain branded bg
 //
 //   Placeholder types (branded base + debug label):
-//     AppBackground(type: BackgroundType.aurora,     child: ...)
-//     AppBackground(type: BackgroundType.noise,      child: ...)
-//     AppBackground(type: BackgroundType.topography, child: ...)
-//     AppBackground(type: BackgroundType.grid,       child: ...)
+//     AppCanvas(type: BackgroundType.aurora,     child: ...)
+//     AppCanvas(type: BackgroundType.noise,      child: ...)
+//     AppCanvas(type: BackgroundType.topography, child: ...)
+//     AppCanvas(type: BackgroundType.grid,       child: ...)
 
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -50,8 +52,6 @@ import 'app_theme.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Per-page toggle defaults ──────────────────────────────────────────────────
-// Change these to alter the global default. Override per AppBackground instance
-// for page-level control without touching this file.
 const bool kDefaultShowParticles = true;
 const bool kDefaultShowGradient  = true;
 
@@ -63,7 +63,7 @@ const double kParticleRadiusMax    = 8.0;
 // ~18% opacity — subtle enough to feel like depth without distracting from content.
 const int kParticleAlpha = 46;
 
-const double kOrbitRadius            = 30.0;
+const double kOrbitRadius              = 30.0;
 const int    kConstellationConnections = 3;
 
 // ── Gradient defaults ─────────────────────────────────────────────────────────
@@ -114,18 +114,17 @@ enum GradientStyle { pulse, sweep, mesh, solid }
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AppBackground
+// AppCanvas
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// WellPath's animated background widget.
+/// WellPath's animated visual canvas widget.
 ///
 /// Drop around any Scaffold body for the full effect with zero configuration.
 /// Use [showParticles] and [showGradient] for per-page motion control.
 ///
-/// All colors derive from AppColors which derives from BrandColors in
-/// app_branding.dart — change the brand seeds there and the background
-/// regenerates automatically with zero changes here.
-class AppBackground extends StatefulWidget {
+/// All colors derive from AppColors → BrandColors in app_branding.dart.
+/// Change the brand seeds there and the canvas regenerates automatically.
+class AppCanvas extends StatefulWidget {
   final Widget child;
   final BackgroundType type;
   final ParticleStyle particleStyle;
@@ -135,14 +134,13 @@ class AppBackground extends StatefulWidget {
   /// Set false to skip the particle layer on this page. Gradient still renders.
   final bool showParticles;
 
-  /// Set false to render a plain solid background instead of the animated
-  /// gradient. Use on pages where the content itself is visually dense.
+  /// Set false to render a plain solid background. Use on visually dense pages.
   final bool showGradient;
 
   final Duration gradientDuration;
   final Duration particleDuration;
 
-  const AppBackground({
+  const AppCanvas({
     super.key,
     required this.child,
     this.type             = BackgroundType.meshParticle,
@@ -156,11 +154,10 @@ class AppBackground extends StatefulWidget {
   });
 
   @override
-  State<AppBackground> createState() => _AppBackgroundState();
+  State<AppCanvas> createState() => _AppCanvasState();
 }
 
-class _AppBackgroundState extends State<AppBackground>
-    with TickerProviderStateMixin {
+class _AppCanvasState extends State<AppCanvas> with TickerProviderStateMixin {
 
   late final AnimationController _gradientCtrl;
   late final AnimationController _particleCtrl;
@@ -169,12 +166,10 @@ class _AppBackgroundState extends State<AppBackground>
   void initState() {
     super.initState();
     _gradientCtrl = AnimationController(
-      vsync:    this,
-      duration: widget.gradientDuration,
+      vsync: this, duration: widget.gradientDuration,
     )..repeat(reverse: true);
     _particleCtrl = AnimationController(
-      vsync:    this,
-      duration: widget.particleDuration,
+      vsync: this, duration: widget.particleDuration,
     )..repeat();
   }
 
@@ -188,7 +183,7 @@ class _AppBackgroundState extends State<AppBackground>
   @override
   Widget build(BuildContext context) {
     if (_isPlaceholder(widget.type)) {
-      return _PlaceholderBackground(type: widget.type, child: widget.child);
+      return _PlaceholderCanvas(type: widget.type, child: widget.child);
     }
 
     return AnimatedBuilder(
@@ -212,7 +207,7 @@ class _AppBackgroundState extends State<AppBackground>
                 widget.type == BackgroundType.meshParticle)
               AnimatedBuilder(
                 animation: _particleCtrl,
-                builder:   (_, __) => CustomPaint(
+                builder: (_, __) => CustomPaint(
                   painter: _ParticlePainter(
                     progress:      _particleCtrl.value,
                     style:         widget.particleStyle,
@@ -226,7 +221,7 @@ class _AppBackgroundState extends State<AppBackground>
                 widget.type == BackgroundType.constellation)
               AnimatedBuilder(
                 animation: _particleCtrl,
-                builder:   (_, __) => CustomPaint(
+                builder: (_, __) => CustomPaint(
                   painter: _ConstellationPainter(
                     progress:  _particleCtrl.value,
                     nodeCount: widget.particleCount,
@@ -238,7 +233,6 @@ class _AppBackgroundState extends State<AppBackground>
 
             // Layer 3 — content always on top
             widget.child,
-
           ],
         );
       },
@@ -268,9 +262,9 @@ class _GradientLayer extends StatelessWidget {
     switch (gradientStyle) {
 
       case GradientStyle.pulse:
-        // Lerps from the raw background toward a lighter brand tone on each cycle.
-        // At progress 0.0 you're at the dark base. At kPulseGradientPeak you're
-        // at surfaceMid. Feels like the screen is breathing.
+        // Lerps from the dark base toward a lighter brand tone on each cycle.
+        // At progress 0.0 → dark base. At kPulseGradientPeak → surfaceMid.
+        // Feels like the screen is breathing.
         final start = Color.lerp(
           AppColors.background, AppColors.surfaceMid,
           progress * kPulseGradientPeak,
@@ -282,8 +276,7 @@ class _GradientLayer extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin:  Alignment.topLeft,
-              end:    Alignment.bottomRight,
+              begin: Alignment.topLeft, end: Alignment.bottomRight,
               colors: [start, end],
             ),
           ),
@@ -304,7 +297,7 @@ class _GradientLayer extends StatelessWidget {
         );
 
       case GradientStyle.mesh:
-        // Static dual-radial bloom — good for pages that need a calmer feel.
+        // Static dual-radial bloom — calmer, for content-heavy pages.
         return Stack(
           fit: StackFit.expand,
           children: [
@@ -375,10 +368,10 @@ class _ParticlePainter extends CustomPainter {
       final radius  = kParticleRadiusMin +
           sin(phase * 0.5).abs() * (kParticleRadiusMax - kParticleRadiusMin);
       canvas.drawCircle(
-          Offset(anchorX + cos(phase) * kOrbitRadius,
-                 anchorY + sin(phase) * kOrbitRadius),
-          radius,
-          _paint(1.0));
+        Offset(anchorX + cos(phase) * kOrbitRadius,
+               anchorY + sin(phase) * kOrbitRadius),
+        radius, _paint(1.0),
+      );
     }
   }
 
@@ -388,9 +381,10 @@ class _ParticlePainter extends CustomPainter {
       final dy    = (size.height / count) * (count - i) + (i % 3) * 20.0;
       final phase = progress * 2 * pi + i * pi / count * 4;
       canvas.drawCircle(
-          Offset(dx % size.width, dy % size.height),
-          kParticleRadiusMin + sin(phase).abs() * (kParticleRadiusMax - kParticleRadiusMin),
-          _paint(0.3 + sin(phase).abs() * 0.7));
+        Offset(dx % size.width, dy % size.height),
+        kParticleRadiusMin + sin(phase).abs() * (kParticleRadiusMax - kParticleRadiusMin),
+        _paint(0.3 + sin(phase).abs() * 0.7),
+      );
     }
   }
 
@@ -454,7 +448,7 @@ class _ConstellationPainter extends CustomPainter {
     final nodePaint = Paint()
       ..color = nodeColor.withAlpha(kParticleAlpha + 20);
     final linePaint = Paint()
-      ..color      = lineColor.withAlpha((kParticleAlpha * 0.5).round())
+      ..color       = lineColor.withAlpha((kParticleAlpha * 0.5).round())
       ..strokeWidth = 0.6;
 
     final positions = _basePositions.map((base) {
@@ -464,7 +458,6 @@ class _ConstellationPainter extends CustomPainter {
       );
     }).toList();
 
-    // Draw connections behind nodes
     for (int i = 0; i < positions.length; i++) {
       final others = List<int>.generate(positions.length, (j) => j)
         ..remove(i)
@@ -498,17 +491,17 @@ class _ConstellationPainter extends CustomPainter {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _PlaceholderBackground
+// _PlaceholderCanvas
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// Shows a branded base so the app doesn't break while types are unimplemented.
+// Branded base so the app doesn't break while types are unimplemented.
 // Remove the debug Positioned label when implementing each type.
 
-class _PlaceholderBackground extends StatelessWidget {
+class _PlaceholderCanvas extends StatelessWidget {
   final BackgroundType type;
   final Widget child;
 
-  const _PlaceholderBackground({required this.type, required this.child});
+  const _PlaceholderCanvas({required this.type, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -530,7 +523,7 @@ class _PlaceholderBackground extends StatelessWidget {
               border:       Border.all(color: AppColors.tint20(AppColors.warning)),
             ),
             child: Text(
-              'BG: ${type.name} — not yet implemented',
+              'Canvas: ${type.name} — not yet implemented',
               style: AppTypography.caption.copyWith(color: AppColors.warning, fontSize: 9),
             ),
           ),

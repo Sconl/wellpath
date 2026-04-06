@@ -1,4 +1,4 @@
-// lib/core/theme/app_theme.dart
+// lib/core/style/app_theme.dart
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CHANGELOG
@@ -15,62 +15,43 @@
 //   • Replaced all withOpacity() calls with withValues(alpha:) throughout
 //   • saturate() and desaturate() are intentional template utilities — kept
 //     with ignore comments; they exist for future screen colour decisions
-//   • Brand color seeds (_kBrandPrimary/Secondary/Tertiary) moved to
-//     app_branding.dart — this file now reads BrandColors.primary/secondary/tertiary.
-//     The branding team owns the seeds; this file owns the derivation engine.
-//   • Font family (_kFontFamily) moved to app_branding.dart — this file now
-//     reads BrandCopy.fontFamily. Typeface is a brand decision, not a theme one.
-//   • import 'app_branding.dart' added. Dependency direction is now correct:
-//     app_branding (seeds) → app_theme (derivation) → everything else.
+//   • Brand color seeds moved to app_branding.dart — engine reads BrandColors
+//   • Font family moved to app_branding.dart — engine reads BrandCopy
+//   • import 'app_branding.dart' added — dependency direction now correct
+//   • AppDecorations, AppShadows, AppTextStyles extracted → app_decorations.dart
+//   • File path updated: lib/core/theme/ → lib/core/style/
+//   • AppTypography updated for 5-font role system: Hero / Display / Text /
+//     Accent / Signature. Each text style is now explicitly assigned a font role.
+//     Swap fonts in app_branding.dart CONFIG BLOCK — nothing changes here.
+//   • AppTypography._f() gains optional `font` parameter — defaults to fontText
+//   • AppTypography.signature added — emotional moments style using fontSignature
+//   • textTheme base updated from fontFamily to BrandCopy.fontText
 // ─────────────────────────────────────────────────────────────────────────────
 
 // HOW TO USE THIS FILE IN A NEW PROJECT:
 //
-//   1. Open app_branding.dart (the file above this one in the dependency chain).
-//   2. Set BrandColors.primary/secondary/tertiary and BrandCopy.fontFamily.
-//   3. Done — everything here regenerates from those inputs automatically.
+//   1. Open app_branding.dart (above this in the dependency chain).
+//   2. Set BrandColors.primary/secondary/tertiary.
+//   3. Set each font role constant (kFontHero through kFontSignature).
+//   4. Done — everything here regenerates from those inputs automatically.
 //
-//   The only things to configure in THIS file are shape/spacing/depth constants
-//   in the CONFIG BLOCK below. Those are layout and depth decisions, not brand.
-//
-//   Wire into main.dart:
-//     MaterialApp(
-//       theme:      AppTheme.light,
-//       darkTheme:  AppTheme.dark,
-//       themeMode:  ThemeMode.system,
-//     )
-//
-//   Gradient buttons need a wrapper because Flutter's ElevatedButton doesn't
-//   support gradients natively. Pattern:
-//
-//     Container(
-//       decoration: AppDecorations.primaryButton,
-//       child: ElevatedButton(
-//         style: ElevatedButton.styleFrom(
-//           backgroundColor: Colors.transparent,
-//           shadowColor: Colors.transparent,
-//         ),
-//         onPressed: onPressed,
-//         child: Text('Label'),
-//       ),
-//     )
+//   Shape/spacing/depth constants below are the only things to configure
+//   in THIS file. Those are layout decisions, not brand decisions.
 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'app_branding.dart'; // BrandColors (seeds) + BrandCopy (fontFamily)
+import 'app_branding.dart'; // BrandColors (seeds) + BrandCopy (font roles + copy)
 
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG BLOCK
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// Brand color seeds and font family have moved to app_branding.dart.
-// This CONFIG BLOCK now contains only shape, spacing, and depth constants —
-// layout and visual structure decisions that belong to the design system,
-// not to the brand identity layer.
+// Font roles live in app_branding.dart. This block contains only shape,
+// spacing, and depth constants — layout and visual structure decisions.
 
 // ── Spacing ───────────────────────────────────────────────────────────────────
 const double _kSpacingBase = 4.0;
@@ -81,16 +62,14 @@ const double _kRadiusCard  = 14.0;
 const double _kRadiusModal = 20.0;
 const double _kRadiusPill  = 50.0;
 
-// ── Depth / Surface Steps ────────────────────────────────────────────────────
-// How far each surface step lifts from the background in lightness.
-// Larger values = more contrast between surface layers.
+// ── Depth / Surface Steps ─────────────────────────────────────────────────────
 const double _kDarkSurfaceStep           = 0.065;
 const double _kLightSurfaceStep          = 0.040;
 const double _kDarkBackgroundSaturation  = 0.22;
 const double _kLightBackgroundSaturation = 0.08;
 
-// Gradient hue shift — how far the gradient end-stop rotates on the hue wheel
-// relative to the start. +12° gives buttons a sense of depth and warmth.
+// +12° on the end stop gives buttons depth and warmth — simulates a light
+// source at the top-left corner without needing an actual light layer.
 const double _kGradientHueShift = 12.0;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -103,8 +82,6 @@ const double _kGradientHueShift = 12.0;
 // ─────────────────────────────────────────────────────────────────────────────
 
 abstract class _Engine {
-
-  // ── HSL channel manipulation ───────────────────────────────────────────────
 
   static HSLColor _hsl(Color c) => HSLColor.fromColor(c);
 
@@ -140,32 +117,17 @@ abstract class _Engine {
     return HSLColor.fromAHSL(1.0, hue, sat, light).toColor();
   }
 
-  // Linear blend between two colors. t=0 returns a, t=1 returns b.
-  //
-  // Flutter 3.27+ deprecated the int channel accessors (.red/.green/.blue/.alpha).
-  // The new API exposes .r/.g/.b/.a as double (0.0–1.0). We multiply by 255
-  // to convert to the int range that Color.fromARGB expects.
+  // Flutter 3.27+: .r/.g/.b/.a return double 0.0–1.0.
   static Color mix(Color a, Color b, double t) {
     int ch(double av, double bv) =>
         ((av + (bv - av) * t) * 255.0).round().clamp(0, 255);
-
-    return Color.fromARGB(
-      ch(a.a, b.a),
-      ch(a.r, b.r),
-      ch(a.g, b.g),
-      ch(a.b, b.b),
-    );
+    return Color.fromARGB(ch(a.a, b.a), ch(a.r, b.r), ch(a.g, b.g), ch(a.b, b.b));
   }
 
-  // ── WCAG contrast ─────────────────────────────────────────────────────────
-
-  // Flutter 3.27+: .r/.g/.b return double 0.0–1.0. The WCAG linearisation
-  // formula operates in the same range — no division by 255 needed.
+  // WCAG linearisation — .r/.g/.b are already 0.0–1.0, no division needed.
   static double _luminance(Color c) {
     double lin(double s) =>
-        s <= 0.04045
-            ? s / 12.92
-            : math.pow((s + 0.055) / 1.055, 2.4).toDouble();
+        s <= 0.04045 ? s / 12.92 : math.pow((s + 0.055) / 1.055, 2.4).toDouble();
     return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
   }
 
@@ -178,13 +140,10 @@ abstract class _Engine {
   static Color onColor(Color bg) {
     final darkText      = mix(darken(bg, 0.65), const Color(0xFF000000), 0.55);
     final whiteContrast = contrastRatio(const Color(0xFFFFFFFF), bg);
-    // Prefer white at 4.5:1 and fall back to the dark hue-tinted text.
     return whiteContrast >= 4.5 ? const Color(0xFFFFFFFF) : darkText;
   }
 
   // ── Dark mode background family ───────────────────────────────────────────
-  // All dark surfaces are derived from the primary brand hue — this is what
-  // makes the dark background feel "branded" rather than generic charcoal.
 
   static Color get darkBackground =>
       fromHSL(_hsl(BrandColors.primary).hue, _kDarkBackgroundSaturation, 0.050);
@@ -216,7 +175,7 @@ abstract class _Engine {
   static Color get tertiaryLight => lighten(BrandColors.tertiary, 0.15);
   static Color get tertiaryDark  => darken(BrandColors.tertiary, 0.15);
 
-  // ── Light mode background/surface family ──────────────────────────────────
+  // ── Light mode family ─────────────────────────────────────────────────────
 
   static Color get lightBackground =>
       fromHSL(_hsl(BrandColors.primary).hue, _kLightBackgroundSaturation, 0.970);
@@ -230,8 +189,6 @@ abstract class _Engine {
           0.970 - _kLightSurfaceStep * 2);
 
   static Color get lightPrimary {
-    // Darken the primary until it passes WCAG AA on the light background.
-    // This ensures the primary color is always usable for text on light surfaces.
     Color c = BrandColors.primary;
     for (int i = 0; i < 30; i++) {
       if (contrastRatio(c, lightBackground) >= 4.5) return c;
@@ -241,9 +198,6 @@ abstract class _Engine {
   }
 
   // ── Gradient color lists ───────────────────────────────────────────────────
-  // The hue shift (+12°) on the end stop gives gradients depth and a sense
-  // of warmth at the bottom — the button looks like it has a light source
-  // coming from the top-left corner.
 
   static List<Color> get buttonColors => [
     BrandColors.primary,
@@ -256,15 +210,10 @@ abstract class _Engine {
   ];
 
   static List<Color> get heroColors => [
-    primaryLight,
-    BrandColors.primary,
-    darkBackground,
+    primaryLight, BrandColors.primary, darkBackground,
   ];
 
-  static List<Color> get surfaceColors => [
-    darkSurfaceLit,
-    darkSurface,
-  ];
+  static List<Color> get surfaceColors => [darkSurfaceLit, darkSurface];
 
   static List<Color> get secondaryButtonColors => [
     BrandColors.secondary,
@@ -286,8 +235,6 @@ abstract class AppColors {
   static Color get surfaceMid    => _Engine.darkSurfaceMid;
   static Color get surfaceLit    => _Engine.darkSurfaceLit;
 
-  // Primary reads directly from BrandColors — the engine's derived variants
-  // are exposed as primaryLight/Dark/Deep for use in gradients and tints.
   static Color get primary      => BrandColors.primary;
   static Color get primaryLight => _Engine.primaryLight;
   static Color get primaryDark  => _Engine.primaryDark;
@@ -306,8 +253,6 @@ abstract class AppColors {
   static Color get lightSurfaceMid => _Engine.lightSurfaceMid;
   static Color get lightPrimary    => _Engine.lightPrimary;
 
-  // These are always white variants regardless of brand — they represent
-  // text ON the dark branded background, not the brand color itself.
   static const Color textPrimary   = Color(0xFFFFFFFF);
   static const Color textSecondary = Color(0x8AFFFFFF);
   static const Color textMuted     = Color(0x3DFFFFFF);
@@ -322,15 +267,11 @@ abstract class AppColors {
   static Color get onSecondary => _Engine.onColor(BrandColors.secondary);
   static Color get onTertiary  => _Engine.onColor(BrandColors.tertiary);
 
-  // Semantic colors are fixed — they carry universal meaning (green=good,
-  // red=error, amber=warning) and should not shift with the brand color.
   static const Color success = Color(0xFF00E676);
   static const Color warning = Color(0xFFFFB300);
   static const Color error   = Color(0xFFFF5252);
   static const Color info    = Color(0xFF40C4FF);
 
-  // live uses the tertiary because tertiary is the warm/energetic accent —
-  // the right semantic match for a "live" badge.
   static Color get live => BrandColors.tertiary;
 
   static const Color border        = Color(0x1FFFFFFF);
@@ -341,8 +282,6 @@ abstract class AppColors {
   static const Color scrim       = Color(0xCC000000);
   static const Color transparent = Color(0x00000000);
 
-  // Chip backgrounds, selection rings, notification banners.
-  // withValues(alpha:) replaces deprecated withOpacity() throughout.
   static Color tint10(Color c) => c.withValues(alpha: 0.10);
   static Color tint20(Color c) => c.withValues(alpha: 0.20);
   static Color tint30(Color c) => c.withValues(alpha: 0.30);
@@ -356,156 +295,43 @@ abstract class AppColors {
 abstract class AppGradients {
 
   static LinearGradient get primary => LinearGradient(
-    begin:  Alignment.topLeft,
-    end:    Alignment.bottomRight,
-    colors: _Engine.heroColors,
-    stops:  const [0.0, 0.35, 1.0],
+    begin: Alignment.topLeft, end: Alignment.bottomRight,
+    colors: _Engine.heroColors, stops: const [0.0, 0.35, 1.0],
   );
 
   static LinearGradient get button => LinearGradient(
-    begin:  Alignment.topLeft,
-    end:    Alignment.bottomRight,
+    begin: Alignment.topLeft, end: Alignment.bottomRight,
     colors: _Engine.buttonColors,
   );
 
   static LinearGradient get buttonHover => LinearGradient(
-    begin:  Alignment.topLeft,
-    end:    Alignment.bottomRight,
+    begin: Alignment.topLeft, end: Alignment.bottomRight,
     colors: _Engine.buttonHoverColors,
   );
 
   static LinearGradient get secondary => LinearGradient(
-    begin:  Alignment.topLeft,
-    end:    Alignment.bottomRight,
+    begin: Alignment.topLeft, end: Alignment.bottomRight,
     colors: _Engine.secondaryButtonColors,
   );
 
   static LinearGradient get avatar => LinearGradient(
-    begin:  Alignment.topLeft,
-    end:    Alignment.bottomRight,
+    begin: Alignment.topLeft, end: Alignment.bottomRight,
     colors: [AppColors.primaryLight, AppColors.primaryDark],
   );
 
   static LinearGradient get surface => LinearGradient(
-    begin:  Alignment.topCenter,
-    end:    Alignment.bottomCenter,
+    begin: Alignment.topCenter, end: Alignment.bottomCenter,
     colors: _Engine.surfaceColors,
   );
 
-  // Mesh bloom gradients — withValues(alpha:) replaces deprecated withOpacity().
   static RadialGradient get meshPrimary => RadialGradient(
-    center: const Alignment(-0.65, -0.35),
-    radius: 1.3,
-    colors: [
-      AppColors.primary.withValues(alpha: 0.18),
-      Colors.transparent,
-    ],
+    center: const Alignment(-0.65, -0.35), radius: 1.3,
+    colors: [AppColors.primary.withValues(alpha: 0.18), Colors.transparent],
   );
 
   static RadialGradient get meshSecondary => RadialGradient(
-    center: const Alignment(0.75, 0.55),
-    radius: 1.0,
-    colors: [
-      AppColors.secondary.withValues(alpha: 0.09),
-      Colors.transparent,
-    ],
-  );
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// APP DECORATIONS
-// ─────────────────────────────────────────────────────────────────────────────
-
-abstract class AppDecorations {
-
-  static BoxDecoration get card => BoxDecoration(
-    color:        AppColors.surface,
-    borderRadius: BorderRadius.circular(_kRadiusCard),
-    border:       Border.all(color: AppColors.border),
-  );
-
-  static BoxDecoration get cardElevated => BoxDecoration(
-    gradient:     AppGradients.surface,
-    borderRadius: BorderRadius.circular(_kRadiusCard),
-    border:       Border.all(color: AppColors.border),
-  );
-
-  static BoxDecoration get modal => BoxDecoration(
-    color:        AppColors.surfaceLit,
-    borderRadius: BorderRadius.circular(_kRadiusModal),
-    border:       Border.all(color: AppColors.borderStrong),
-    boxShadow:    AppShadows.modal,
-  );
-
-  static BoxDecoration get popup => BoxDecoration(
-    color:        AppColors.surfaceMid,
-    borderRadius: BorderRadius.circular(_kRadiusCard),
-    border:       Border.all(color: AppColors.border),
-    boxShadow:    AppShadows.card,
-  );
-
-  static BoxDecoration get primaryButton => BoxDecoration(
-    gradient:     AppGradients.button,
-    borderRadius: BorderRadius.circular(_kRadiusPill),
-    boxShadow:    AppShadows.buttonGlow,
-  );
-
-  static BoxDecoration get primaryButtonHover => BoxDecoration(
-    gradient:     AppGradients.buttonHover,
-    borderRadius: BorderRadius.circular(_kRadiusPill),
-    boxShadow:    AppShadows.buttonGlowHover,
-  );
-
-  static BoxDecoration get secondaryButton => BoxDecoration(
-    gradient:     AppGradients.secondary,
-    borderRadius: BorderRadius.circular(_kRadiusPill),
-    boxShadow:    AppShadows.secondaryGlow,
-  );
-
-  static BoxDecoration get outlinedButton => BoxDecoration(
-    color:        Colors.transparent,
-    borderRadius: BorderRadius.circular(_kRadiusPill),
-    border:       Border.all(color: AppColors.primary, width: 1.5),
-  );
-
-  static BoxDecoration get avatar => BoxDecoration(
-    gradient:     AppGradients.avatar,
-    borderRadius: BorderRadius.circular(_kRadiusCard),
-  );
-
-  static BoxDecoration get chip => BoxDecoration(
-    color:        AppColors.tint10(AppColors.primary),
-    borderRadius: BorderRadius.circular(_kSpacingBase * 2),
-    border:       Border.all(color: AppColors.tint20(AppColors.primary)),
-  );
-
-  static BoxDecoration get successBanner => BoxDecoration(
-    color:        AppColors.tint10(AppColors.success),
-    borderRadius: BorderRadius.circular(_kRadiusCard),
-    border:       Border.all(color: AppColors.tint20(AppColors.success)),
-  );
-
-  static BoxDecoration get errorBanner => BoxDecoration(
-    color:        AppColors.tint10(AppColors.error),
-    borderRadius: BorderRadius.circular(_kRadiusCard),
-    border:       Border.all(color: AppColors.tint20(AppColors.error)),
-  );
-
-  static BoxDecoration get warningBanner => BoxDecoration(
-    color:        AppColors.tint10(AppColors.warning),
-    borderRadius: BorderRadius.circular(_kRadiusCard),
-    border:       Border.all(color: AppColors.tint20(AppColors.warning)),
-  );
-
-  static BoxDecoration get infoBanner => BoxDecoration(
-    color:        AppColors.tint10(AppColors.info),
-    borderRadius: BorderRadius.circular(_kRadiusCard),
-    border:       Border.all(color: AppColors.tint20(AppColors.info)),
-  );
-
-  static BoxDecoration get screenBackground => BoxDecoration(
-    color: AppColors.background,
+    center: const Alignment(0.75, 0.55), radius: 1.0,
+    colors: [AppColors.secondary.withValues(alpha: 0.09), Colors.transparent],
   );
 }
 
@@ -547,73 +373,7 @@ abstract class AppRadius {
   static BorderRadius get cardBR     => BorderRadius.circular(card);
   static BorderRadius get modalBR    => BorderRadius.circular(modal);
   static BorderRadius get pillBR     => BorderRadius.circular(pill);
-  static BorderRadius get modalTopBR =>
-      BorderRadius.vertical(top: Radius.circular(modal));
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// APP SHADOWS
-// All withOpacity() replaced with withValues(alpha:).
-// ─────────────────────────────────────────────────────────────────────────────
-
-abstract class AppShadows {
-
-  static List<BoxShadow> get card => [
-    BoxShadow(
-      color:      AppColors.background.withValues(alpha: 0.55),
-      blurRadius: 20,
-      offset:     const Offset(0, 8),
-    ),
-  ];
-
-  static List<BoxShadow> get modal => [
-    BoxShadow(
-      color:      Colors.black.withValues(alpha: 0.50),
-      blurRadius: 40,
-      offset:     const Offset(0, 16),
-    ),
-  ];
-
-  static List<BoxShadow> get buttonGlow => [
-    BoxShadow(
-      color:      AppColors.primaryDeep.withValues(alpha: 0.55),
-      blurRadius: 24,
-      offset:     const Offset(0, 8),
-    ),
-  ];
-
-  static List<BoxShadow> get buttonGlowHover => [
-    BoxShadow(
-      color:      AppColors.primaryDeep.withValues(alpha: 0.70),
-      blurRadius: 32,
-      offset:     const Offset(0, 10),
-    ),
-  ];
-
-  static List<BoxShadow> get secondaryGlow => [
-    BoxShadow(
-      color:      AppColors.secondaryDark.withValues(alpha: 0.50),
-      blurRadius: 24,
-      offset:     const Offset(0, 8),
-    ),
-  ];
-
-  static List<BoxShadow> get inputFocus => [
-    BoxShadow(
-      color:        AppColors.primary.withValues(alpha: 0.18),
-      blurRadius:   12,
-      spreadRadius: 1,
-    ),
-  ];
-
-  static List<BoxShadow> get successGlow => [
-    BoxShadow(
-      color:      AppColors.success.withValues(alpha: 0.28),
-      blurRadius: 16,
-      offset:     const Offset(0, 4),
-    ),
-  ];
+  static BorderRadius get modalTopBR => BorderRadius.vertical(top: Radius.circular(modal));
 }
 
 
@@ -633,59 +393,109 @@ abstract class AppDurations {
 // APP TYPOGRAPHY
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// BrandCopy.fontFamily is the single source for the font name. App_theme.dart
-// has no hardcoded font name — if the branding team changes the typeface in
-// app_branding.dart, AppTypography regenerates automatically.
+// Each text style is explicitly assigned a font role from BrandCopy.
+// Swap a font in app_branding.dart's CONFIG BLOCK — every style using that
+// role updates automatically. Nothing changes here.
+//
+// ┌─────────────────────────────────────────────────────────────────────────┐
+// │ FONT ROLE → TEXT STYLES ASSIGNED                                        │
+// │                                                                         │
+// │ fontHero      → brandBold, brandLight                                   │
+// │                 The typographic brand identity. Used when the app       │
+// │                 introduces itself — splash, marketing moments.           │
+// │                                                                         │
+// │ fontDisplay   → h1, h2, h3, h4, h5                                     │
+// │                 Page/section structure. Every screen heading.           │
+// │                                                                         │
+// │ fontText      → bodyLarge, body, bodySmall, button, buttonSm,           │
+// │                 input, inputLabel, helper                               │
+// │                 The workhorse — anything the user reads or interacts    │
+// │                 with at length. Should be the most readable font.       │
+// │                                                                         │
+// │ fontAccent    → caption, overline, chip, badge                          │
+// │                 Data precision layer. Small labels, numbers, metadata,  │
+// │                 status indicators. Adds contrast vs body copy.          │
+// │                                                                         │
+// │ fontSignature → signature                                               │
+// │                 Emotional layer. NOT a system style — call it only for  │
+// │                 greetings, milestones, encouragement, empty states.      │
+// │                 Target <3% of visible UI text. Overuse kills the effect. │
+// └─────────────────────────────────────────────────────────────────────────┘
 
 abstract class AppTypography {
 
-  // brandBold / brandLight match BrandLogo's rendering but go through
-  // AppTypography for screen contexts where BrandLogo isn't appropriate
-  // (e.g., a large-format RichText that mixes logo text with body copy).
-  static TextStyle get brandBold  => _f(FontWeight.w700, 36, ls: -1.5);
-  static TextStyle get brandLight => _f(FontWeight.w300, 36, ls: -1.5,
+  // ── Hero role — brand identity moments ────────────────────────────────────
+  // These styles carry the brand's visual signature. Use for splash screens,
+  // the app's "face" moments, and large marketing statements. Not for UI chrome.
+  static TextStyle get brandBold  => _f(FontWeight.w700, 36, font: BrandCopy.fontHero, ls: -1.5);
+  static TextStyle get brandLight => _f(FontWeight.w300, 36, font: BrandCopy.fontHero, ls: -1.5,
     color: AppColors.textSecondary);
 
-  static TextStyle get h1 => _f(FontWeight.w700, 28, ls: -0.5);
-  static TextStyle get h2 => _f(FontWeight.w700, 22, ls: -0.3);
-  static TextStyle get h3 => _f(FontWeight.w600, 18);
-  static TextStyle get h4 => _f(FontWeight.w600, 15);
-  static TextStyle get h5 => _f(FontWeight.w600, 13);
+  // ── Display role — app structure and hierarchy ─────────────────────────────
+  // Page titles, section headers, modal titles, card headers. These define the
+  // visual skeleton of each screen. Should be confident and legible at a glance.
+  static TextStyle get h1 => _f(FontWeight.w700, 28, font: BrandCopy.fontDisplay, ls: -0.5);
+  static TextStyle get h2 => _f(FontWeight.w700, 22, font: BrandCopy.fontDisplay, ls: -0.3);
+  static TextStyle get h3 => _f(FontWeight.w600, 18, font: BrandCopy.fontDisplay);
+  static TextStyle get h4 => _f(FontWeight.w600, 15, font: BrandCopy.fontDisplay);
+  static TextStyle get h5 => _f(FontWeight.w600, 13, font: BrandCopy.fontDisplay);
 
-  static TextStyle get bodyLarge => _f(FontWeight.w400, 16, h: 1.6);
-  static TextStyle get body      => _f(FontWeight.w400, 14, h: 1.6);
-  static TextStyle get bodySmall => _f(FontWeight.w300, 13, h: 1.5,
+  // ── Text role — the workhorse, everything the user lives in ───────────────
+  // Body copy, forms, buttons, inputs. Should be the most readable font in
+  // the set. If this font changes, it reshapes the feel of the entire app.
+  static TextStyle get bodyLarge => _f(FontWeight.w400, 16, font: BrandCopy.fontText, h: 1.6);
+  static TextStyle get body      => _f(FontWeight.w400, 14, font: BrandCopy.fontText, h: 1.6);
+  static TextStyle get bodySmall => _f(FontWeight.w300, 13, font: BrandCopy.fontText, h: 1.5,
     color: AppColors.textSecondary);
 
-  static TextStyle get button   => _f(FontWeight.w700, 15, ls: 0.3,
+  static TextStyle get button   => _f(FontWeight.w700, 15, font: BrandCopy.fontText, ls: 0.3,
     color: AppColors.onPrimary);
-  static TextStyle get buttonSm => _f(FontWeight.w700, 13, ls: 0.3,
+  static TextStyle get buttonSm => _f(FontWeight.w700, 13, font: BrandCopy.fontText, ls: 0.3,
     color: AppColors.onPrimary);
-  static TextStyle get input      => _f(FontWeight.w400, 14);
-  static TextStyle get inputLabel => _f(FontWeight.w300, 13,
+  static TextStyle get input      => _f(FontWeight.w400, 14, font: BrandCopy.fontText);
+  static TextStyle get inputLabel => _f(FontWeight.w300, 13, font: BrandCopy.fontText,
     color: AppColors.textSecondary);
-  static TextStyle get helper     => _f(FontWeight.w300, 12,
+  static TextStyle get helper     => _f(FontWeight.w300, 12, font: BrandCopy.fontText,
     color: AppColors.textSecondary);
 
-  static TextStyle get caption  => _f(FontWeight.w300, 11,
+  // ── Accent role — data precision layer ────────────────────────────────────
+  // Small labels, metadata, timestamps, tags, stats, status badges. The Accent
+  // font should feel slightly different from Text — tighter, sharper, or more
+  // technical — so it reads as "system info" rather than "narrative content".
+  static TextStyle get caption  => _f(FontWeight.w300, 11, font: BrandCopy.fontAccent,
     color: AppColors.textMuted);
-  static TextStyle get overline => _f(FontWeight.w700, 10, ls: 2.5,
+  static TextStyle get overline => _f(FontWeight.w700, 10, font: BrandCopy.fontAccent, ls: 2.5,
     color: AppColors.textMuted);
-  static TextStyle get chip     => _f(FontWeight.w600, 10,
+  static TextStyle get chip     => _f(FontWeight.w600, 10, font: BrandCopy.fontAccent,
     color: AppColors.primary);
-  static TextStyle get badge    => _f(FontWeight.w700, 9, ls: 0.5);
+  static TextStyle get badge    => _f(FontWeight.w700, 9, font: BrandCopy.fontAccent, ls: 0.5);
 
-  // All typography reads the font from BrandCopy.fontFamily — the branding
-  // team changing the font in app_branding.dart regenerates every text style.
+  // ── Signature role — emotional moments only ───────────────────────────────
+  // Greetings, milestone unlocks, encouragement text, warm empty states.
+  // This style should appear rarely — target <3% of visible UI text.
+  // Call it explicitly at the specific emotional moment; never use it as a
+  // default or body replacement. Overuse destroys the effect entirely.
+  //
+  // Example call sites:
+  //   "Welcome back, Alex 👋"       → onboarding greeting
+  //   "You crushed it today"        → workout completion
+  //   "Nothing here yet…"           → warm empty state
+  //   "Goal reached. Keep going."   → milestone unlock
+  static TextStyle get signature => _f(FontWeight.w400, 18, font: BrandCopy.fontSignature, h: 1.5,
+    color: AppColors.textSecondary);
+
+  // _f — the internal style builder.
+  // font defaults to fontText — the system workhorse. Override per style above.
   static TextStyle _f(
     FontWeight w,
     double size, {
+    String? font,
     double? ls,
     double? h,
     Color? color,
   }) =>
       GoogleFonts.getFont(
-        BrandCopy.fontFamily,
+        font ?? BrandCopy.fontText,
         fontWeight:    w,
         fontSize:      size,
         letterSpacing: ls,
@@ -744,12 +554,12 @@ class AppTheme {
       ),
 
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor:     AppColors.surface,
-        selectedItemColor:   AppColors.primary,
-        unselectedItemColor: AppColors.textMuted,
-        elevation:           0,
-        type:                BottomNavigationBarType.fixed,
-        selectedLabelStyle:  AppTypography.chip,
+        backgroundColor:      AppColors.surface,
+        selectedItemColor:    AppColors.primary,
+        unselectedItemColor:  AppColors.textMuted,
+        elevation:            0,
+        type:                 BottomNavigationBarType.fixed,
+        selectedLabelStyle:   AppTypography.chip,
         unselectedLabelStyle: AppTypography.caption,
       ),
 
@@ -784,8 +594,7 @@ class AppTheme {
           foregroundColor: AppColors.onPrimary,
           elevation:       0,
           padding: EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical:   AppSpacing.sm + 7,
+            horizontal: AppSpacing.lg, vertical: AppSpacing.sm + 7,
           ),
           shape:       RoundedRectangleBorder(borderRadius: AppRadius.pillBR),
           textStyle:   AppTypography.button,
@@ -798,8 +607,7 @@ class AppTheme {
           foregroundColor: AppColors.primary,
           side:            BorderSide(color: AppColors.primary, width: 1.5),
           padding: EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical:   AppSpacing.sm + 7,
+            horizontal: AppSpacing.lg, vertical: AppSpacing.sm + 7,
           ),
           shape:       RoundedRectangleBorder(borderRadius: AppRadius.pillBR),
           textStyle:   AppTypography.button.copyWith(color: AppColors.primary),
@@ -812,8 +620,7 @@ class AppTheme {
           foregroundColor: AppColors.primary,
           textStyle:       AppTypography.bodySmall.copyWith(color: AppColors.primary),
           padding: EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical:   AppSpacing.xs,
+            horizontal: AppSpacing.sm, vertical: AppSpacing.xs,
           ),
         ),
       ),
@@ -863,9 +670,7 @@ class AppTheme {
       ),
 
       dividerTheme: const DividerThemeData(
-        color:     AppColors.border,
-        thickness: 1,
-        space:     0,
+        color: AppColors.border, thickness: 1, space: 0,
       ),
 
       dialogTheme: DialogThemeData(
@@ -947,10 +752,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: AppRadius.cardBR),
       ),
 
-      iconTheme: const IconThemeData(
-        color: AppColors.textSecondary,
-        size:  22,
-      ),
+      iconTheme: const IconThemeData(color: AppColors.textSecondary, size: 22),
 
       tabBarTheme: TabBarThemeData(
         labelColor:           AppColors.primary,
@@ -1004,9 +806,11 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: AppRadius.modalBR),
       ),
 
-      // BrandCopy.fontFamily drives the text theme — same source as AppTypography.
+      // fontText as base — the copyWith() below overrides most styles with the
+      // correct font role per style. Anything not overridden gets fontText,
+      // which is correct (it's the system workhorse default).
       textTheme: GoogleFonts.getTextTheme(
-        BrandCopy.fontFamily,
+        BrandCopy.fontText,
         ThemeData.dark().textTheme,
       ).copyWith(
         displayLarge:   AppTypography.h1.copyWith(fontSize: 32),
@@ -1075,8 +879,7 @@ class AppTheme {
           foregroundColor: _Engine.onColor(AppColors.lightPrimary),
           elevation:       0,
           padding: EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical:   AppSpacing.sm + 7,
+            horizontal: AppSpacing.lg, vertical: AppSpacing.sm + 7,
           ),
           shape:       RoundedRectangleBorder(borderRadius: AppRadius.pillBR),
           textStyle:   AppTypography.button.copyWith(
@@ -1091,8 +894,7 @@ class AppTheme {
           foregroundColor: AppColors.lightPrimary,
           side:            BorderSide(color: AppColors.lightPrimary, width: 1.5),
           padding: EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical:   AppSpacing.sm + 7,
+            horizontal: AppSpacing.lg, vertical: AppSpacing.sm + 7,
           ),
           shape:       RoundedRectangleBorder(borderRadius: AppRadius.pillBR),
           minimumSize: const Size(double.infinity, 50),
@@ -1130,18 +932,13 @@ class AppTheme {
       ),
 
       dividerTheme: DividerThemeData(
-        color:     AppColors.lightSurfaceMid,
-        thickness: 1,
-        space:     0,
+        color: AppColors.lightSurfaceMid, thickness: 1, space: 0,
       ),
 
-      iconTheme: IconThemeData(
-        color: AppColors.lightTextSecondary,
-        size:  22,
-      ),
+      iconTheme: IconThemeData(color: AppColors.lightTextSecondary, size: 22),
 
       textTheme: GoogleFonts.getTextTheme(
-        BrandCopy.fontFamily,
+        BrandCopy.fontText,
         ThemeData.light().textTheme,
       ).copyWith(
         displayLarge:   AppTypography.h1.copyWith(fontSize: 32, color: AppColors.lightTextPrimary),
@@ -1158,42 +955,4 @@ class AppTheme {
       ),
     );
   }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// APP TEXT STYLES — semantic aliases
-// ─────────────────────────────────────────────────────────────────────────────
-
-abstract class AppTextStyles {
-  static TextStyle get screenTitle    => AppTypography.h2;
-  static TextStyle get sectionHeader  => AppTypography.overline;
-  static TextStyle get cardTitle      => AppTypography.h4;
-  static TextStyle get cardSubtitle   => AppTypography.bodySmall;
-  static TextStyle get metricValue    => AppTypography.h3.copyWith(
-    color: AppColors.primary, fontWeight: FontWeight.w700,
-  );
-  static TextStyle get metricLabel    => AppTypography.caption;
-  static TextStyle get authHeading    => AppTypography.h2;
-  static TextStyle get authSubheading => AppTypography.bodySmall;
-  static TextStyle get link           => AppTypography.bodySmall.copyWith(
-    color: AppColors.primary, fontWeight: FontWeight.w500,
-  );
-  static TextStyle get errorText      => AppTypography.helper.copyWith(
-    color: AppColors.error,
-  );
-  static TextStyle get successText    => AppTypography.helper.copyWith(
-    color: AppColors.success,
-  );
-  static TextStyle get warningText    => AppTypography.helper.copyWith(
-    color: AppColors.warning,
-  );
-  static TextStyle get timestamp      => AppTypography.caption;
-  static TextStyle get notifTitle     => AppTypography.body.copyWith(
-    fontWeight: FontWeight.w700,
-  );
-  static TextStyle get notifBody      => AppTypography.bodySmall;
-  static TextStyle get statusLive     => AppTypography.badge.copyWith(
-    color: AppColors.live, letterSpacing: 1,
-  );
 }
