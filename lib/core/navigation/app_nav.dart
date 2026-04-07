@@ -39,6 +39,7 @@ import 'package:go_router/go_router.dart';
 
 import '../style/app_theme.dart';
 import '../style/app_branding.dart';
+import 'app_nav_items.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG
@@ -74,92 +75,6 @@ NavMode _resolveNavMode(BuildContext context) {
   final w = MediaQuery.of(context).size.width;
   return w >= _kSidebarBreak ? NavMode.sidebar : NavMode.drawer;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// NavItem
-// ─────────────────────────────────────────────────────────────────────────────
-
-class NavItem {
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  final String route;
-
-  const NavItem({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-    required this.route,
-  });
-}
-
-// ── User nav ──────────────────────────────────────────────────────────────────
-const kUserNavItems = <NavItem>[
-  NavItem(
-    icon: Icons.home_outlined,
-    activeIcon: Icons.home_rounded,
-    label: 'Home',
-    route: '/home',
-  ),
-  NavItem(
-    icon: Icons.search_outlined,
-    activeIcon: Icons.search_rounded,
-    label: 'Discover',
-    route: '/discover',
-  ),
-  NavItem(
-    icon: Icons.favorite_border_rounded,
-    activeIcon: Icons.favorite_rounded,
-    label: 'Wellness',
-    route: '/wellness',
-  ),
-  NavItem(
-    icon: Icons.calendar_month_outlined,
-    activeIcon: Icons.calendar_month_rounded,
-    label: 'Bookings',
-    route: '/bookings',
-  ),
-  NavItem(
-    icon: Icons.person_outline_rounded,
-    activeIcon: Icons.person_rounded,
-    label: 'Profile',
-    route: '/profile',
-  ),
-];
-
-// ── Trainer nav ───────────────────────────────────────────────────────────────
-const kTrainerNavItems = <NavItem>[
-  NavItem(
-    icon: Icons.dashboard_outlined,
-    activeIcon: Icons.dashboard_rounded,
-    label: 'Dashboard',
-    route: '/home',
-  ),
-  NavItem(
-    icon: Icons.event_available_outlined,
-    activeIcon: Icons.event_available_rounded,
-    label: 'Availability',
-    route: '/availability',
-  ),
-  NavItem(
-    icon: Icons.calendar_month_outlined,
-    activeIcon: Icons.calendar_month_rounded,
-    label: 'Bookings',
-    route: '/bookings',
-  ),
-  NavItem(
-    icon: Icons.group_outlined,
-    activeIcon: Icons.group_rounded,
-    label: 'Clients',
-    route: '/clients',
-  ),
-  NavItem(
-    icon: Icons.person_outline_rounded,
-    activeIcon: Icons.person_rounded,
-    label: 'Profile',
-    route: '/profile',
-  ),
-];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AppNavScope — InheritedWidget

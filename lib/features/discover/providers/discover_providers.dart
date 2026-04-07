@@ -3,204 +3,157 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // CHANGELOG
 // ─────────────────────────────────────────────────────────────────────────────
-//   v2.0.0 — Production-ready pass:
-//            - Added TrainerProfile model (temporary inline).
-//            - Added allTrainersProvider (mock-safe).
-//            - Added trainerByIdProvider (safe lookup).
-//            - Added trainerSlotsProvider integration.
-//            - Hardened error handling across providers.
-//            - Improved location + network resilience.
-//            - Structured for easy backend swap (Firestore/API).
+//   v1.0.0 — Initial. GPS + Google Places nearby gyms + filter state.
+//   v1.1.0 — Added allTrainersProvider + trainerByIdProvider. Trainer data
+//            now Firestore-backed (seeded by SeedService on first launch).
+//            AppLatLng moved to lib/core/models/app_lat_lng.dart — import
+//            from there, not here. Re-exported for backward compatibility.
+//   v1.2.0 — nearbyGymsProvider retained as a stub for future Places API
+//            integration on the Gyms screen. Gyms screen currently uses
+//            kSampleGyms from gym_providers.dart instead.
+//            discoverFilterProvider removed — TrainersScreen and
+//            DiscoverScreen do client-side text filtering instead.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../core/models/app_lat_lng.dart';
 import '../../../core/models/trainer_profile.dart';
-import '../data/place_model.dart';
-import '../../bookings/data/availability_model.dart';
-import '../../bookings/providers/bookings_providers.dart' as bookings;
+
+// Re-export AppLatLng so existing files that import from this path still compile.
+export '../../../core/models/app_lat_lng.dart' show AppLatLng;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG
 // ─────────────────────────────────────────────────────────────────────────────
 
+// API keys — replace with --dart-define values before production build.
 const String kMapboxAccessToken = 'pk.YOUR_MAPBOX_ACCESS_TOKEN_HERE';
 const String kGooglePlacesApiKey = 'YOUR_GOOGLE_PLACES_API_KEY_HERE';
 
-const String _kPlacesBaseUrl =
-    'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
-
-const double kFallbackLat = -4.0435;
-const double kFallbackLng = 39.6682;
-
-const int kNearbySearchRadiusMetres = 3000;
+const String _kPlacesBaseUrl = 'https://maps.googleapis.com/maps/api/place';
+const int kNearbySearchRadiusMetres = 5000;
 const String kGymPlaceType = 'gym';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DISCOVER STATE
-// ─────────────────────────────────────────────────────────────────────────────
-
-enum DiscoverFilter { gyms, trainers }
-
-class DiscoverState {
-  final String query;
-  final DiscoverFilter filter;
-
-  const DiscoverState({
-    this.query = '',
-    this.filter = DiscoverFilter.gyms,
-  });
-
-  DiscoverState copyWith({String? query, DiscoverFilter? filter}) {
-    return DiscoverState(
-      query: query ?? this.query,
-      filter: filter ?? this.filter,
-    );
-  }
-}
-
-class DiscoverNotifier extends StateNotifier<DiscoverState> {
-  DiscoverNotifier() : super(const DiscoverState());
-
-  void setQuery(String q) => state = state.copyWith(query: q);
-  void setFilter(DiscoverFilter f) => state = state.copyWith(filter: f);
-}
-
-final discoverFilterProvider =
-    StateNotifierProvider<DiscoverNotifier, DiscoverState>(
-  (_) => DiscoverNotifier(),
-);
+// GPS timeout — if location doesn't resolve in this time, fall back to CBD.
+const int _kGpsTimeoutSeconds = 10;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LOCATION
+// userLocationProvider — GPS with Mombasa CBD fallback
+//
+// Returns isFallback: true when GPS is denied or times out so feature screens
+// can show a location-unavailable banner if desired.
 // ─────────────────────────────────────────────────────────────────────────────
 
 final userLocationProvider = FutureProvider<AppLatLng>((ref) async {
   try {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return const AppLatLng(kFallbackLat, kFallbackLng);
-    }
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return AppLatLng.mombasaCbd;
 
     LocationPermission permission = await Geolocator.checkPermission();
-
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return AppLatLng.mombasaCbd;
+    }
+    if (permission == LocationPermission.deniedForever) {
+      return AppLatLng.mombasaCbd;
     }
 
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      return const AppLatLng(kFallbackLat, kFallbackLng);
-    }
-
-    final pos = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-      timeLimit: const Duration(seconds: 10),
+    final position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.medium,
+    ).timeout(
+      Duration(seconds: _kGpsTimeoutSeconds),
+      onTimeout: () => throw Exception('GPS timeout'),
     );
 
-    return AppLatLng(pos.latitude, pos.longitude);
+    return AppLatLng(position.latitude, position.longitude);
   } catch (_) {
-    return const AppLatLng(kFallbackLat, kFallbackLng);
+    return AppLatLng.mombasaCbd;
   }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PLACES (GYMS)
+// allTrainersProvider — real-time stream of all trainers ordered by rating
+//
+// Used by:
+//   - home_screen.dart        (_NearbyMapCard: trainer pins on home map)
+//   - discover_screen.dart    (trainer list + map)
+//   - trainers_screen.dart    (trainer list + map)
 // ─────────────────────────────────────────────────────────────────────────────
 
-final nearbyGymsProvider = FutureProvider<List<PlaceModel>>((ref) async {
-  final location = ref.watch(userLocationProvider).value;
-  if (location == null) return [];
-
-  final uri = Uri.parse(_kPlacesBaseUrl).replace(queryParameters: {
-    'location': '${location.lat},${location.lng}',
-    'radius': '$kNearbySearchRadiusMetres',
-    'type': kGymPlaceType,
-    'key': kGooglePlacesApiKey,
-  });
-
-  try {
-    final response = await http.get(uri).timeout(const Duration(seconds: 12));
-
-    if (response.statusCode != 200) return [];
-
-    final body = jsonDecode(response.body);
-    final results = body['results'] as List? ?? [];
-
-    return results
-        .map((r) => PlaceModel.fromJson(r as Map<String, dynamic>))
-        .toList();
-  } catch (_) {
-    return [];
-  }
+final allTrainersProvider = StreamProvider<List<TrainerProfile>>((ref) {
+  return FirebaseFirestore.instance
+      .collection(kTrainersCollection)
+      .orderBy('rating', descending: true)
+      .snapshots()
+      .map((snap) => snap.docs.map(TrainerProfile.fromFirestore).toList());
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TRAINERS (CORE)
-// ─────────────────────────────────────────────────────────────────────────────
-
-final allTrainersProvider = FutureProvider<List<TrainerProfile>>((ref) async {
-  await Future.delayed(const Duration(milliseconds: 300));
-
-  return [
-    TrainerProfile(
-      id: 't1',
-      displayName: 'Alex Mwangi',
-      bio: 'Strength & conditioning coach.',
-      specialties: ['Strength', 'Weight Loss'],
-      locationName: 'Nyali',
-      lat: -4.028,
-      lng: 39.713,
-      rating: 4.8,
-      reviewCount: 42,
-      yearsExperience: 5,
-      sessionRate: 2500,
-      clientCount: 120,
-      priceKes: 2500,
-      isVerified: true,
-    ),
-    TrainerProfile(
-      id: 't2',
-      displayName: 'Brian Otieno',
-      bio: 'HIIT & cardio specialist.',
-      specialties: ['HIIT', 'Endurance'],
-      locationName: 'Kizingo',
-      lat: -4.050,
-      lng: 39.670,
-      rating: 4.6,
-      reviewCount: 28,
-      yearsExperience: 3,
-      sessionRate: 1800,
-      clientCount: 80,
-      priceKes: 1800,
-    ),
-  ];
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TRAINER LOOKUP
+// trainerByIdProvider — real-time stream for a single trainer document
+//
+// Used by:
+//   - discover/presentation/trainer_profile_screen.dart
 // ─────────────────────────────────────────────────────────────────────────────
 
 final trainerByIdProvider =
-    FutureProvider.family<TrainerProfile?, String>((ref, id) async {
-  final all = await ref.watch(allTrainersProvider.future);
-
-  for (final t in all) {
-    if (t.id == id) return t;
-  }
-  return null;
+    StreamProvider.family<TrainerProfile?, String>((ref, trainerId) {
+  if (trainerId.isEmpty) return Stream.value(null);
+  return FirebaseFirestore.instance
+      .collection(kTrainersCollection)
+      .doc(trainerId)
+      .snapshots()
+      .map((doc) => doc.exists ? TrainerProfile.fromFirestore(doc) : null);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TRAINER SLOTS
+// nearbyGymsProvider — Google Places Nearby Search for gyms
+//
+// Currently used as a lightweight pin source for the home map card.
+// The Gyms screen (gyms_screen.dart) uses kSampleGyms from gym_providers.dart
+// instead, which avoids API quota on every page load.
+//
+// TODO (Week 6): Wire nearbyGymsProvider to the gyms screen when Places API
+// quota and billing are confirmed for production.
 // ─────────────────────────────────────────────────────────────────────────────
 
-final trainerSlotsProvider =
-    FutureProvider.family<List<AvailabilitySlot>, String>(
-        (ref, trainerId) async {
-  return await ref.watch(bookings.availableSlotsProvider(trainerId).future);
+class _PlaceSummary {
+  final String placeId;
+  final double lat, lng;
+  const _PlaceSummary(this.placeId, this.lat, this.lng);
+}
+
+final nearbyGymsProvider = FutureProvider<List<_PlaceSummary>>((ref) async {
+  final location = await ref.watch(userLocationProvider.future);
+
+  try {
+    final url = Uri.parse(
+      '$_kPlacesBaseUrl/nearbysearch/json'
+      '?location=${location.lat},${location.lng}'
+      '&radius=$kNearbySearchRadiusMetres'
+      '&type=$kGymPlaceType'
+      '&key=$kGooglePlacesApiKey',
+    );
+
+    final response = await http.get(url).timeout(const Duration(seconds: 8));
+    if (response.statusCode != 200) return [];
+
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final results = json['results'] as List? ?? [];
+
+    return results.map((r) {
+      final geo = r['geometry']['location'] as Map<String, dynamic>;
+      return _PlaceSummary(
+        r['place_id'] as String,
+        (geo['lat'] as num).toDouble(),
+        (geo['lng'] as num).toDouble(),
+      );
+    }).toList();
+  } catch (_) {
+    return []; // Network / quota failure — never crash the home screen.
+  }
 });

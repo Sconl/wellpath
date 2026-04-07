@@ -12,7 +12,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/maps/app_map_widget.dart';
-import '../../../core/models/app_lat_lng.dart';
 import '../../../core/models/trainer_profile.dart';
 import '../../../core/style/app_theme.dart';
 import '../../../core/style/app_decorations.dart';

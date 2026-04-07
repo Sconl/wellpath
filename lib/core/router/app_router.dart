@@ -3,13 +3,18 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // CHANGELOG
 // ─────────────────────────────────────────────────────────────────────────────
-//   v3.0.0 — Unified router:
-//            • Riverpod-driven auth + Firestore role routing
-//            • NotificationBannerHost preserved across protected routes
-//            • Full booking flow retained
-//            • Trainer vs User role enforcement
-//            • No split-brain (single source of truth)
-//            • Placeholder fallback only where needed
+//   v1.0.0 — Initial GoRouter + _RouterNotifier.
+//   v2.0.0 — Booking flow routes (/bookings, /trainer/:id, /profile).
+//            NotificationBannerHost wraps all authenticated routes.
+//   v3.0.0 — Role-based routing (user → /home, trainer → /trainer-dashboard).
+//            Firestore user role guard via firestoreUserProvider.
+//   v3.1.0 — RECONCILED. Single source of truth:
+//            • v2.0.0 booking flow + NotificationBannerHost retained.
+//            • v3.0.0 role routing retained.
+//            • TrainerProfileScreen import fixed to discover/ location.
+//            • New routes: /trainers, /gyms, /wellness.
+//            • /discover → redirect to /trainers (FABs + deep links still work).
+//            • /availability → placeholder (AvailabilityScreen Week 5).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/material.dart';
@@ -17,19 +22,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../landing_page.dart';
-
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
 import '../../features/auth/providers/auth_providers.dart';
-
 import '../../features/home/home_screen.dart';
-import '../../features/discover/presentation/discover_screen.dart';
-
+import '../../features/discover/presentation/trainers_screen.dart';
+import '../../features/discover/presentation/trainer_profile_screen.dart';
+import '../../features/gyms/presentation/gyms_screen.dart';
 import '../../features/bookings/presentation/bookings_screen.dart';
-import '../../features/bookings/presentation/trainer_profile_screen.dart';
-
+import '../../features/wellness/presentation/wellness_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
-
 import '../../features/notifications/notification_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,7 +41,7 @@ import '../../features/notifications/notification_service.dart';
 const _kPublicRoutes = {'/', '/landing', '/login', '/signup'};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _RouterNotifier
+// _RouterNotifier — fires on auth state OR Firestore user role change
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _RouterNotifier extends ChangeNotifier {
@@ -60,139 +62,78 @@ final routerProvider = Provider<GoRouter>((ref) {
     debugLogDiagnostics: false,
     initialLocation: '/landing',
     refreshListenable: notifier,
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // REDIRECT LOGIC (AUTH + ROLE)
-    // ─────────────────────────────────────────────────────────────────────────
     redirect: (context, state) {
       final loc = state.uri.path;
 
-      // 1. Wait for auth state
       final authAsync = ref.read(authStateProvider);
       if (authAsync.isLoading) return null;
 
       final isLoggedIn = authAsync.value != null;
       final isPublicRoute = _kPublicRoutes.contains(loc);
 
-      // 2. Signed out
-      if (!isLoggedIn) {
-        return isPublicRoute ? null : '/login';
-      }
+      if (!isLoggedIn) return isPublicRoute ? null : '/login';
 
-      // 3. Wait for user role
       final userAsync = ref.read(firestoreUserProvider);
       if (userAsync.isLoading) return null;
 
-      final user = userAsync.value;
-      final isTrainer = user?.isTrainer == true;
+      final isTrainer = userAsync.value?.isTrainer == true;
 
-      // 4. Signed in → redirect away from public routes
+      // Signed-in users bounce off public/landing routes.
       if (isPublicRoute) {
         return isTrainer ? '/trainer-dashboard' : '/home';
       }
 
-      // 5. Role enforcement
+      // Role enforcement — trainers can't access /home, users can't access
+      // /trainer-dashboard. All other routes are accessible to both.
       if (loc == '/trainer-dashboard' && !isTrainer) return '/home';
       if (loc == '/home' && isTrainer) return '/trainer-dashboard';
 
       return null;
     },
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // ROUTES
-    // ─────────────────────────────────────────────────────────────────────────
     routes: [
       // ── PUBLIC ─────────────────────────────────────────────────────────────
-
+      GoRoute(path: '/', redirect: (_, __) => '/landing'),
       GoRoute(
-        path: '/',
-        redirect: (_, __) => '/landing',
-      ),
-
+          path: '/landing',
+          name: 'landing',
+          builder: (_, __) => const LandingPage()),
       GoRoute(
-        path: '/landing',
-        name: 'landing',
-        builder: (_, __) => const LandingPage(),
-      ),
-
+          path: '/login',
+          name: 'login',
+          builder: (_, __) => const LoginScreen()),
       GoRoute(
-        path: '/login',
-        name: 'login',
-        builder: (_, __) => const LoginScreen(),
-      ),
+          path: '/signup',
+          name: 'signup',
+          builder: (_, __) => const SignupScreen()),
 
-      GoRoute(
-        path: '/signup',
-        name: 'signup',
-        builder: (_, __) => const SignupScreen(),
-      ),
-
-      // ── PROTECTED: USER ────────────────────────────────────────────────────
-
+      // ── HOME ───────────────────────────────────────────────────────────────
       GoRoute(
         path: '/home',
         name: 'home',
-        builder: (_, __) => NotificationBannerHost(
-          child: const HomeScreen(),
-        ),
+        builder: (_, __) => NotificationBannerHost(child: const HomeScreen()),
       ),
 
+      // ── DISCOVER / TRAINERS ────────────────────────────────────────────────
+      // /discover redirects to /trainers — FABs + existing deep links still work.
+      GoRoute(path: '/discover', redirect: (_, __) => '/trainers'),
       GoRoute(
-        path: '/discover',
-        name: 'discover',
-        builder: (_, __) => NotificationBannerHost(
-          child: const DiscoverScreen(),
-        ),
+        path: '/trainers',
+        name: 'trainers',
+        builder: (_, __) =>
+            NotificationBannerHost(child: const TrainersScreen()),
       ),
 
+      // ── GYMS ───────────────────────────────────────────────────────────────
       GoRoute(
-        path: '/bookings',
-        name: 'bookings',
-        builder: (_, __) => NotificationBannerHost(
-          child: const BookingsScreen(),
-        ),
+        path: '/gyms',
+        name: 'gyms',
+        builder: (_, __) => NotificationBannerHost(child: const GymsScreen()),
       ),
 
-      GoRoute(
-        path: '/profile',
-        name: 'profile',
-        builder: (_, __) => NotificationBannerHost(
-          child: const ProfileScreen(),
-        ),
-      ),
-
-      GoRoute(
-        path: '/wellness',
-        name: 'wellness',
-        builder: (_, __) => NotificationBannerHost(
-          child: const _PlaceholderScreen(
-            title: 'Track Wellness',
-            icon: Icons.favorite_outline,
-            week: 'Week 5',
-          ),
-        ),
-      ),
-
-      // ── PROTECTED: TRAINER ─────────────────────────────────────────────────
-
-      GoRoute(
-        path: '/trainer-dashboard',
-        name: 'trainerDashboard',
-        builder: (_, __) => NotificationBannerHost(
-          child: const HomeScreen(isTrainerView: true),
-        ),
-      ),
-
-      GoRoute(
-        path: '/availability',
-        name: 'availability',
-        builder: (_, __) => NotificationBannerHost(
-          child: const HomeScreen(isTrainerView: true), // replace later
-        ),
-      ),
-
-      // ── TRAINER PROFILE (PUBLIC ACCESSIBLE) ────────────────────────────────
-
+      // ── TRAINER PROFILE ────────────────────────────────────────────────────
+      // Canonical source: discover/presentation/trainer_profile_screen.dart
+      // The bookings/presentation/trainer_profile_screen.dart produced in the
+      // previous session is superseded — do not import it.
       GoRoute(
         path: '/trainer/:id',
         name: 'trainerProfile',
@@ -202,11 +143,55 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ),
       ),
-    ],
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // ERROR PAGE
-    // ─────────────────────────────────────────────────────────────────────────
+      // ── BOOKINGS ───────────────────────────────────────────────────────────
+      GoRoute(
+        path: '/bookings',
+        name: 'bookings',
+        builder: (_, __) =>
+            NotificationBannerHost(child: const BookingsScreen()),
+      ),
+
+      // ── WELLNESS ───────────────────────────────────────────────────────────
+      GoRoute(
+        path: '/wellness',
+        name: 'wellness',
+        builder: (_, __) =>
+            NotificationBannerHost(child: const WellnessScreen()),
+      ),
+
+      // ── PROFILE + SETTINGS ────────────────────────────────────────────────
+      GoRoute(
+        path: '/profile',
+        name: 'profile',
+        builder: (_, __) =>
+            NotificationBannerHost(child: const ProfileScreen()),
+      ),
+
+      // ── TRAINER DASHBOARD ─────────────────────────────────────────────────
+      GoRoute(
+        path: '/trainer-dashboard',
+        name: 'trainerDashboard',
+        builder: (_, __) => NotificationBannerHost(
+          child: const HomeScreen(isTrainerView: true),
+        ),
+      ),
+
+      // ── TRAINER AVAILABILITY ──────────────────────────────────────────────
+      // Placeholder — AvailabilityScreen ships Week 5.
+      // The trainer FAB on HomeScreen(isTrainerView: true) routes here.
+      GoRoute(
+        path: '/availability',
+        name: 'availability',
+        builder: (_, __) => NotificationBannerHost(
+          child: const _PlaceholderScreen(
+            title: 'Manage Availability',
+            icon: Icons.event_available_outlined,
+            week: 'Week 5',
+          ),
+        ),
+      ),
+    ],
     errorBuilder: (_, state) => Scaffold(
       backgroundColor: const Color(0xFF020E08),
       body: Center(
@@ -216,15 +201,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             const Icon(Icons.link_off_outlined,
                 color: Colors.white24, size: 48),
             const SizedBox(height: 16),
-            const Text(
-              'Page not found',
-              style: TextStyle(color: Colors.white70, fontSize: 16),
-            ),
+            const Text('Page not found',
+                style: TextStyle(color: Colors.white70, fontSize: 16)),
             const SizedBox(height: 8),
-            Text(
-              state.uri.path,
-              style: const TextStyle(color: Colors.white30, fontSize: 12),
-            ),
+            Text(state.uri.path,
+                style: const TextStyle(color: Colors.white30, fontSize: 12)),
           ],
         ),
       ),
@@ -233,47 +214,36 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PLACEHOLDER SCREEN
+// _PlaceholderScreen
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _PlaceholderScreen extends StatelessWidget {
   final String title;
   final IconData icon;
   final String week;
-
-  const _PlaceholderScreen({
-    required this.title,
-    required this.icon,
-    required this.week,
-  });
+  const _PlaceholderScreen(
+      {required this.title, required this.icon, required this.week});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF020E08),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(title,
-            style: const TextStyle(color: Colors.white, fontSize: 16)),
-        iconTheme: const IconThemeData(color: Colors.white54),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+  Widget build(BuildContext context) => Scaffold(
+        backgroundColor: const Color(0xFF020E08),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: Text(title,
+              style: const TextStyle(color: Colors.white, fontSize: 16)),
+          iconTheme: const IconThemeData(color: Colors.white54),
+        ),
+        body: Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(icon, color: Colors.white12, size: 56),
             const SizedBox(height: 20),
             Text(title,
                 style: const TextStyle(color: Colors.white54, fontSize: 18)),
             const SizedBox(height: 8),
-            Text(
-              'Coming $week',
-              style: const TextStyle(color: Colors.white24, fontSize: 12),
-            ),
-          ],
+            Text('Coming $week',
+                style: const TextStyle(color: Colors.white24, fontSize: 12)),
+          ]),
         ),
-      ),
-    );
-  }
+      );
 }
