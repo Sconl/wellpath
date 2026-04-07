@@ -66,6 +66,7 @@ dependencies:
   # AI & Machine Learning
   # ─────────────────────────────────────────────────────────────────────────────
   google_generative_ai: ^0.4.6    # Google AI/Gemini API integration
+  shared_preferences: ^2.3.0
 
 
 dev_dependencies:

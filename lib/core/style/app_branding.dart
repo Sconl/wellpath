@@ -88,12 +88,12 @@ const Color _kBrandTertiary = Color(0xFFFF8A65); // warm coral
 // also work — the widget detects the extension and routes accordingly.
 //
 // Register every non-null path in pubspec.yaml under flutter: assets:
-const String? _kLogoHorizontal =
+const String _kLogoHorizontal =
     'assets/logos/20260326_wellpath_logo_horizontal_primary_color.svg';
 // PLACEHOLDER → 'assets/brand/logo_horizontal.svg'
-const String? _kLogoVertical =
+const String _kLogoVertical =
     'assets/logos/20260326_wellpath_logo_vertical_primary_color.svg'; // PLACEHOLDER → 'assets/brand/logo_vertical.svg'
-const String? _kLogoIcon =
+const String _kLogoIcon =
     'assets/logos/20260326_wellpath_logo_icon_primary_color.svg'; // PLACEHOLDER → 'assets/brand/logo_icon.svg'
 
 // ── Web / PWA assets ──────────────────────────────────────────────────────────
@@ -272,9 +272,9 @@ abstract class BrandAssets {
   // you do NOT need separate white or black asset files.
   // BrandLogoEngine exposes all 9 combinations (3 shapes × 3 variants) as
   // named widget builders. Set these paths once the SVGs are ready.
-  static const String? logoHorizontal = _kLogoHorizontal; // PLACEHOLDER
-  static const String? logoVertical = _kLogoVertical; // PLACEHOLDER
-  static const String? logoIcon = _kLogoIcon; // PLACEHOLDER
+  static const String logoHorizontal = _kLogoHorizontal; // PLACEHOLDER
+  static const String logoVertical = _kLogoVertical; // PLACEHOLDER
+  static const String logoIcon = _kLogoIcon; // PLACEHOLDER
 
   // ── Web / PWA ────────────────────────────────────────────────────────────
   static const String? favicon = _kFavicon; // PLACEHOLDER

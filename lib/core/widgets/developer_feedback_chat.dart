@@ -290,12 +290,6 @@ class _DeveloperFeedbackChatState extends State<DeveloperFeedbackChat> {
     }
   }
 
-  // Public method to check AI readiness (can be called from outside)
-  static bool isAiReady() {
-    final key = const String.fromEnvironment('GEMINI_API_KEY');
-    return key.isNotEmpty && key.startsWith('AIza');
-  }
-
   // ── Lifecycle ──────────────────────────────────────────────────────────
 
   @override

@@ -35,7 +35,7 @@ const double kSignupFormPaddingH = 36.0;
 const double kSignupFormPaddingV = 40.0;
 
 const double kSignupSubtitleSize = 14.0;
-const String kSignupGifPath = 'animated-gifs/signup_digital_screen_female.gif';
+const String kSignupGifPath = 'gifs/signup_digital_screen_female.gif';
 const double kSignupImagePaddingH = 48.0;
 
 // Set to false before shipping to production.

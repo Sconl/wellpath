@@ -1,19 +1,20 @@
 // lib/main.dart
-
+//
 // ─────────────────────────────────────────────────────────────────────────────
 // CHANGELOG
 // ─────────────────────────────────────────────────────────────────────────────
-//   • Integrated Mapbox initialization (access token setup)
-//   • Added Web-safe guard for Mapbox (prevents crash on Flutter Web)
-//   • Preserved Firebase initialization
-//   • Maintained Riverpod ProviderScope
-//   • Retained AppTheme (dark-first design)
-//   • Connected Discover providers (Mapbox dependency)
-//   • Cleaned and unified app bootstrap flow — Sconl Peter
+//   v3.0.0 — Unified bootstrap:
+//            • Firebase initialization (single entry point)
+//            • Web-safe Mapbox initialization (kIsWeb guard)
+//            • NotificationService.initialize() (idempotent)
+//            • SeedService.ensureSeeded() (dev-only, removable)
+//            • Clean Riverpod + GoRouter integration
+//            • Dark-first theme preserved
+//            • Side-effects centralized (no scattered init calls)
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // ← IMPORTANT (kIsWeb)
+import 'package:flutter/foundation.dart'; // kIsWeb
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -22,31 +23,61 @@ import 'firebase_options.dart';
 import 'core/router/app_router.dart';
 import 'core/style/app_theme.dart';
 
-// TODO: Move this to secure storage (env/secrets)
+import 'features/notifications/notification_service.dart';
+import 'features/bookings/data/trainer_seed_data.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────────────────────────────────────
+
+// TODO: Move to secure storage (env / secrets manager)
 const String kMapboxAccessToken = 'YOUR_MAPBOX_ACCESS_TOKEN';
+
+// Toggle seeding (disable in production)
+const bool kEnableSeeding = true;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN
+// ─────────────────────────────────────────────────────────────────────────────
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Initialize Firebase
+  // Firebase
   // ───────────────────────────────────────────────────────────────────────────
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Initialize Mapbox (ONLY for mobile platforms)
+  // Mapbox (mobile only — prevents Flutter Web crash)
   // ───────────────────────────────────────────────────────────────────────────
   if (!kIsWeb) {
     MapboxOptions.setAccessToken(kMapboxAccessToken);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Launch App with Riverpod
+  // Notifications (safe to call every launch)
+  // ───────────────────────────────────────────────────────────────────────────
+  await NotificationService.instance.initialize();
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Dev Seeding (REMOVE when onboarding is live)
+  // ───────────────────────────────────────────────────────────────────────────
+  if (kEnableSeeding) {
+    await SeedService.ensureSeeded();
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // App Launch
   // ───────────────────────────────────────────────────────────────────────────
   runApp(const ProviderScope(child: WellPathApp()));
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// APP ROOT
+// ─────────────────────────────────────────────────────────────────────────────
 
 class WellPathApp extends ConsumerWidget {
   const WellPathApp({super.key});
@@ -60,14 +91,14 @@ class WellPathApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
 
       // ───────────────────────────────────────────────────────────────────────
-      // Theme Configuration (Dark-first brand identity)
+      // Theme (Dark-first brand identity)
       // ───────────────────────────────────────────────────────────────────────
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.dark,
 
       // ───────────────────────────────────────────────────────────────────────
-      // Navigation (GoRouter / AppRouter)
+      // Navigation (GoRouter — role-aware)
       // ───────────────────────────────────────────────────────────────────────
       routerConfig: router,
     );

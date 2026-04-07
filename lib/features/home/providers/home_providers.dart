@@ -61,16 +61,29 @@ final todayWellnessLogsProvider = StreamProvider<List<WellnessLog>>((ref) {
   final uid = ref.watch(authStateProvider).value?.uid;
   if (uid == null) return Stream.value([]);
 
-  final now      = DateTime.now();
+  final now = DateTime.now();
   final dayStart = DateTime(now.year, now.month, now.day);
-  final dayEnd   = dayStart.add(const Duration(days: 1));
+  final dayEnd = dayStart.add(const Duration(days: 1));
 
   return FirebaseFirestore.instance
       .collection('users')
       .doc(uid)
       .collection(kWellnessLogsCollection)
       .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(dayStart))
-      .where('timestamp', isLessThan:             Timestamp.fromDate(dayEnd))
+      .where('timestamp', isLessThan: Timestamp.fromDate(dayEnd))
+      .snapshots()
+      .map((snap) => snap.docs.map(WellnessLog.fromFirestore).toList());
+});
+
+final wellnessHistoryProvider = StreamProvider<List<WellnessLog>>((ref) {
+  final uid = ref.watch(authStateProvider).value?.uid;
+  if (uid == null) return Stream.value([]);
+
+  return FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .collection(kWellnessLogsCollection)
+      .orderBy('timestamp', descending: true)
       .snapshots()
       .map((snap) => snap.docs.map(WellnessLog.fromFirestore).toList());
 });
@@ -88,9 +101,10 @@ final upcomingBookingsProvider = StreamProvider<List<BookingModel>>((ref) {
 
   return FirebaseFirestore.instance
       .collection(kBookingsCollection)
-      .where('userId',        isEqualTo:              uid)
-      .where('status',        isEqualTo:              'confirmed')
-      .where('slotStartTime', isGreaterThanOrEqualTo: Timestamp.fromDate(DateTime.now()))
+      .where('userId', isEqualTo: uid)
+      .where('status', isEqualTo: 'confirmed')
+      .where('slotStartTime',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(DateTime.now()))
       .orderBy('slotStartTime')
       .limit(_kMaxUpcomingBookings)
       .snapshots()
@@ -109,9 +123,10 @@ final trainerBookingsProvider = StreamProvider<List<BookingModel>>((ref) {
 
   return FirebaseFirestore.instance
       .collection(kBookingsCollection)
-      .where('trainerId',     isEqualTo:              uid)
-      .where('status',        isEqualTo:              'confirmed')
-      .where('slotStartTime', isGreaterThanOrEqualTo: Timestamp.fromDate(DateTime.now()))
+      .where('trainerId', isEqualTo: uid)
+      .where('status', isEqualTo: 'confirmed')
+      .where('slotStartTime',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(DateTime.now()))
       .orderBy('slotStartTime')
       .limit(_kMaxUpcomingBookings)
       .snapshots()
@@ -133,23 +148,23 @@ class WellnessLogRepository {
       : _db = db ?? FirebaseFirestore.instance;
 
   Future<void> addLog({
-    required String       uid,
+    required String uid,
     required WellnessType type,
-    required double       value,
-    Map<String, dynamic>  metadata = const {},
+    required double value,
+    Map<String, dynamic> metadata = const {},
   }) async {
     await _db
         .collection('users')
         .doc(uid)
         .collection(kWellnessLogsCollection)
         .add({
-          'type':      type.name,
-          'value':     value,
-          'metadata':  metadata,
-          // serverTimestamp is critical — client clocks in Mombasa can drift.
-          // A client-side DateTime.now() would corrupt the day-range query.
-          'timestamp': FieldValue.serverTimestamp(),
-        });
+      'type': type.name,
+      'value': value,
+      'metadata': metadata,
+      // serverTimestamp is critical — client clocks in Mombasa can drift.
+      // A client-side DateTime.now() would corrupt the day-range query.
+      'timestamp': FieldValue.serverTimestamp(),
+    });
   }
 }
 

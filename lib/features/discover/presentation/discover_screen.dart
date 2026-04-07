@@ -18,37 +18,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/maps/app_map_widget.dart';
+import '../../../core/models/app_lat_lng.dart';
+import '../../../core/models/trainer_profile.dart';
 import '../../../core/style/app_theme.dart';
+import '../../../core/style/app_decorations.dart';
 import '../../../core/navigation/app_nav.dart';
 import '../../auth/providers/auth_providers.dart';
-import '../data/place_model.dart';
 import '../providers/discover_providers.dart';
-import 'widgets/gym_card.dart';
+import 'widgets/trainer_card.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Layout ──
-const double _kBreakHybrid     = 720.0;   // map+list side-by-side above this
-const double _kMapHeightMobile = 280.0;   // stacked map height on mobile
-const double _kListPadH        = 16.0;
-const double _kListPadV        = 16.0;
-const double _kCardGap         = 10.0;
-const double _kSearchBarH      = 44.0;
-const double _kFilterChipH     = 34.0;
-const double _kMapFraction     = 0.46;    // map takes 46% of width in hybrid
+const double _kListPadH = 16.0;
+const double _kListPadV = 16.0;
+const double _kCardGap = 10.0;
+const double _kSearchBarH = 44.0;
 
-// ── Map ──
-// Mapbox dark style (mobile). Ignored on web — OSM is used automatically.
-const String _kMapStyle    = 'mapbox://styles/mapbox/dark-v11';
-const double _kDefaultZoom = 14.0;
+const double _kMapFallbackLat = -4.0435;
+const double _kMapFallbackLng = 39.6682;
+const double _kMapZoom = 13.5;
+const String _kMapStyle = 'mapbox://styles/mapbox/dark-v11';
 
 // ── Copy ──
-const String _kSearchHint    = 'Search gyms & trainers...';
-const String _kEmptyGyms     = 'No gyms found nearby.\nTry expanding your search area.';
-const String _kEmptyTrainers = 'Trainers are coming soon.\nBe the first to sign up!';
-const String _kLocationBanner = 'Showing results near Mombasa CBD';
+const String _kSearchHint = 'Search trainers...';
+const String _kEmptyTrainers = 'No trainers found.\nTry adjusting your search.';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DiscoverScreen
@@ -63,12 +59,12 @@ class DiscoverScreen extends ConsumerWidget {
 
     return userAsync.when(
       loading: () => _LoadingScaffold(),
-      error:   (_, __) => _LoadingScaffold(),
+      error: (_, __) => _LoadingScaffold(),
       data: (user) => AppNavShell(
-        currentRoute:  '/discover',
+        currentRoute: '/discover',
         isTrainerView: false,
-        displayName:   user?.displayName ?? '',
-        photoUrl:      user?.photoUrl,
+        displayName: user?.displayName ?? '',
+        photoUrl: user?.photoUrl,
         child: const _DiscoverBody(),
       ),
     );
@@ -87,13 +83,7 @@ class _DiscoverBody extends ConsumerStatefulWidget {
 }
 
 class _DiscoverBodyState extends ConsumerState<_DiscoverBody> {
-  // The only map reference in this entire file — the abstract controller.
-  // No Mapbox types, no flutter_map types. This file is engine-agnostic.
-  AppMapController? _mapController;
-
-  String?              _selectedPlaceId;
-  final _searchCtrl  = TextEditingController();
-  final _itemKeys    = <String, GlobalKey>{};
+  final _searchCtrl = TextEditingController();
 
   @override
   void dispose() {
@@ -101,66 +91,17 @@ class _DiscoverBodyState extends ConsumerState<_DiscoverBody> {
     super.dispose();
   }
 
-  // ── Map ready ─────────────────────────────────────────────────────────────
-
-  void _onMapReady(AppMapController ctrl) {
-    _mapController = ctrl;
-    // Pin whatever gyms are already loaded when the map first renders.
-    final gyms = ref.read(nearbyGymsProvider).valueOrNull ?? [];
-    _refreshPins(gyms);
-  }
-
-  // ── Pin management ────────────────────────────────────────────────────────
-
-  Future<void> _refreshPins(List<PlaceModel> gyms) async {
-    final ctrl = _mapController;
-    if (ctrl == null) return;
-
-    final pins = gyms.map((g) => AppMapPin(
-      id:       g.placeId,
-      lat:      g.lat,
-      lng:      g.lng,
-      selected: g.placeId == _selectedPlaceId,
-    )).toList();
-
-    await ctrl.setPins(pins);
-  }
-
-  // ── Card / pin interaction ────────────────────────────────────────────────
-
-  Future<void> _onCardTapped(PlaceModel place) async {
-    setState(() => _selectedPlaceId = place.placeId);
-
-    final gyms = ref.read(nearbyGymsProvider).valueOrNull ?? [];
-    await _refreshPins(gyms);
-
-    // Fly map to the selected gym — zoom in one extra level for context.
-    await _mapController?.animateTo(
-      place.lat,
-      place.lng,
-      zoom: _kDefaultZoom + 1,
-    );
-
-    // Scroll the list so the selected card is visible.
-    final key = _itemKeys[place.placeId];
-    if (key?.currentContext != null) {
-      Scrollable.ensureVisible(
-        key!.currentContext!,
-        duration: const Duration(milliseconds: 400),
-        curve:    Curves.easeOut,
-      );
-    }
-  }
-
   // ── Filtering ─────────────────────────────────────────────────────────────
 
-  List<PlaceModel> _filtered(List<PlaceModel> all, String query) {
+  List<TrainerProfile> _filtered(List<TrainerProfile> all, String query) {
     if (query.trim().isEmpty) return all;
     final q = query.toLowerCase();
     return all
-        .where((p) =>
-            p.name.toLowerCase().contains(q) ||
-            p.address.toLowerCase().contains(q))
+        .where((t) =>
+            t.displayName.toLowerCase().contains(q) ||
+            t.specialties.any((s) => s.toLowerCase().contains(q)) ||
+            t.bio.toLowerCase().contains(q) ||
+            t.locationName.toLowerCase().contains(q))
         .toList();
   }
 
@@ -168,78 +109,58 @@ class _DiscoverBodyState extends ConsumerState<_DiscoverBody> {
 
   @override
   Widget build(BuildContext context) {
-    final filterState   = ref.watch(discoverFilterProvider);
-    final locationAsync = ref.watch(userLocationProvider);
-    final gymsAsync     = ref.watch(nearbyGymsProvider);
+    final trainersAsync = ref.watch(allTrainersProvider);
 
-    // Refresh pins whenever the gym list loads or changes.
-    ref.listen(nearbyGymsProvider, (_, next) {
-      _refreshPins(next.valueOrNull ?? []);
-    });
-
-    // Fly map to GPS location once it resolves.
-    ref.listen(userLocationProvider, (_, next) {
-      final loc = next.value;
-      if (loc != null) {
-        _mapController?.animateTo(loc.lat, loc.lng);
-      }
-    });
-
-    final centre = locationAsync.value ??
-        const AppLatLng(kFallbackLat, kFallbackLng);
-
-    final gyms     = gymsAsync.valueOrNull ?? [];
-    final filtered = _filtered(gyms, filterState.query);
+    final trainers = trainersAsync.valueOrNull ?? [];
+    final filtered = _filtered(trainers, _searchCtrl.text);
 
     return Column(children: [
-      // ── Search + filter bar ───────────────────────────────────────────
+      // ── Search bar ─────────────────────────────────────────────────────
       _SearchFilterBar(
         controller: _searchCtrl,
-        filter:     filterState.filter,
-        onSearch:   (q) =>
-            ref.read(discoverFilterProvider.notifier).setQuery(q),
-        onFilter:   (f) =>
-            ref.read(discoverFilterProvider.notifier).setFilter(f),
+        onSearch: (q) => setState(() {}),
       ),
 
-      // ── Fallback location banner ──────────────────────────────────────
-      if (locationAsync.value?.isFallback == true) _LocationBanner(),
-
-      // ── Map + list — hybrid or stacked ───────────────────────────────
+      // ── Map + list split ───────────────────────────────────────────────
       Expanded(
         child: LayoutBuilder(builder: (ctx, box) {
-          final wide = box.maxWidth >= _kBreakHybrid;
-
-          // AppMapWidget — one import, correct engine selected at compile time.
-          final mapWidget = AppMapWidget(
-            key:        const ValueKey('discover-map'),
-            initialLat: centre.lat,
-            initialLng: centre.lng,
-            initialZoom: _kDefaultZoom,
-            styleUri:   _kMapStyle,
-            onMapReady: _onMapReady,
-          );
-
-          final listWidget = _ResultList(
-            gymsAsync:  gymsAsync,
-            filtered:   filtered,
-            filter:     filterState.filter,
-            selectedId: _selectedPlaceId,
-            itemKeys:   _itemKeys,
-            onCardTap:  _onCardTapped,
-          );
-
+          final wide = box.maxWidth >= 900;
           if (wide) {
             return Row(children: [
-              SizedBox(
-                  width: box.maxWidth * _kMapFraction,
-                  child: mapWidget),
-              Expanded(child: listWidget),
+              Expanded(
+                flex: 5,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
+                  child: _DiscoverMapPane(trainers: filtered),
+                ),
+              ),
+              Expanded(
+                flex: 5,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 16, 16, 16),
+                  child: _ResultList(
+                    trainersAsync: trainersAsync,
+                    filtered: filtered,
+                  ),
+                ),
+              ),
             ]);
           }
+
           return Column(children: [
-            SizedBox(height: _kMapHeightMobile, child: mapWidget),
-            Expanded(child: listWidget),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: SizedBox(
+                height: 280,
+                child: _DiscoverMapPane(trainers: filtered),
+              ),
+            ),
+            Expanded(
+              child: _ResultList(
+                trainersAsync: trainersAsync,
+                filtered: filtered,
+              ),
+            ),
           ]);
         }),
       ),
@@ -252,22 +173,18 @@ class _DiscoverBodyState extends ConsumerState<_DiscoverBody> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SearchFilterBar extends StatelessWidget {
-  final TextEditingController        controller;
-  final DiscoverFilter               filter;
-  final ValueChanged<String>         onSearch;
-  final ValueChanged<DiscoverFilter> onFilter;
+  final TextEditingController controller;
+  final ValueChanged<String> onSearch;
 
   const _SearchFilterBar({
     required this.controller,
-    required this.filter,
     required this.onSearch,
-    required this.onFilter,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color:   AppColors.surface,
+      color: AppColors.surface,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -277,59 +194,40 @@ class _SearchFilterBar extends StatelessWidget {
             height: _kSearchBarH,
             child: TextField(
               controller: controller,
-              onChanged:  onSearch,
-              style:      AppTypography.body.copyWith(color: AppColors.textPrimary),
+              onChanged: onSearch,
+              style: AppTypography.body.copyWith(color: AppColors.textPrimary),
               decoration: InputDecoration(
-                hintText:   _kSearchHint,
-                hintStyle:  AppTypography.body.copyWith(color: AppColors.textMuted),
+                hintText: _kSearchHint,
+                hintStyle:
+                    AppTypography.body.copyWith(color: AppColors.textMuted),
                 prefixIcon: Icon(Icons.search_rounded,
                     size: 18, color: AppColors.textMuted),
                 suffixIcon: controller.text.isNotEmpty
                     ? GestureDetector(
-                        onTap:  () => onSearch(''),
-                        child:  Icon(Icons.close_rounded,
+                        onTap: () => onSearch(''),
+                        child: Icon(Icons.close_rounded,
                             size: 16, color: AppColors.textMuted),
                       )
                     : null,
-                filled:       true,
-                fillColor:    AppColors.surfaceMid,
-                contentPadding: const EdgeInsets.symmetric(
-                    vertical: 0, horizontal: 16),
+                filled: true,
+                fillColor: AppColors.surfaceMid,
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                 border: OutlineInputBorder(
                   borderRadius: AppRadius.pillBR,
-                  borderSide:   BorderSide.none,
+                  borderSide: BorderSide.none,
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: AppRadius.pillBR,
-                  borderSide:   BorderSide(color: AppColors.border),
+                  borderSide: BorderSide(color: AppColors.border),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: AppRadius.pillBR,
-                  borderSide:   BorderSide(color: AppColors.primary, width: 1.5),
+                  borderSide: BorderSide(color: AppColors.primary, width: 1.5),
                 ),
               ),
             ),
           ),
-
-          const SizedBox(height: 10),
-
-          // ── Filter chips ────────────────────────────────────────────────
-          Row(children: [
-            _FilterChip(
-              label:    'Gyms Nearby',
-              icon:     Icons.fitness_center_rounded,
-              selected: filter == DiscoverFilter.gyms,
-              onTap:    () => onFilter(DiscoverFilter.gyms),
-            ),
-            const SizedBox(width: 8),
-            _FilterChip(
-              label:    'Trainers',
-              icon:     Icons.person_rounded,
-              selected: filter == DiscoverFilter.trainers,
-              onTap:    () => onFilter(DiscoverFilter.trainers),
-              badge:    'Soon',
-            ),
-          ]),
 
           const SizedBox(height: 10),
           Divider(height: 1, color: AppColors.border),
@@ -339,6 +237,77 @@ class _SearchFilterBar extends StatelessWidget {
   }
 }
 
+class _DiscoverMapPane extends StatefulWidget {
+  final List<TrainerProfile> trainers;
+  const _DiscoverMapPane({required this.trainers});
+
+  @override
+  State<_DiscoverMapPane> createState() => _DiscoverMapPaneState();
+}
+
+class _DiscoverMapPaneState extends State<_DiscoverMapPane> {
+  AppMapController? _mapController;
+  late AppLatLng _centre;
+  List<AppMapPin> _pins = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _updateMapState();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DiscoverMapPane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.trainers != widget.trainers) {
+      _updateMapState();
+    }
+  }
+
+  void _updateMapState() {
+    final trainers = widget.trainers;
+    if (trainers.isNotEmpty) {
+      _centre = AppLatLng(trainers.first.lat, trainers.first.lng);
+      _pins = trainers
+          .map((t) => AppMapPin(id: t.id, lat: t.lat, lng: t.lng))
+          .toList();
+    } else {
+      _centre = const AppLatLng(_kMapFallbackLat, _kMapFallbackLng);
+      _pins = const [];
+    }
+
+    if (_mapController != null) {
+      _mapController!.setPins(_pins);
+    }
+  }
+
+  void _onMapReady(AppMapController controller) {
+    _mapController = controller;
+    controller.setPins(_pins);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: AppDecorations.card,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: SizedBox.expand(
+          child: AppMapWidget(
+            initialLat: _centre.lat,
+            initialLng: _centre.lng,
+            initialZoom: _kMapZoom,
+            styleUri: _kMapStyle,
+            initialPins: _pins,
+            onMapReady: _onMapReady,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/*
 class _FilterChip extends StatelessWidget {
   final String       label;
   final IconData     icon;
@@ -360,7 +329,7 @@ class _FilterChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        height:   _kFilterChipH,
+        height:   34.0,
         padding:  const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           color: selected
@@ -405,66 +374,27 @@ class _FilterChip extends StatelessWidget {
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _LocationBanner
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _LocationBanner extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width:   double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color:   AppColors.warning.withValues(alpha: 0.10),
-      child: Row(children: [
-        Icon(Icons.location_off_outlined, size: 14, color: AppColors.warning),
-        const SizedBox(width: 8),
-        Text(
-          _kLocationBanner,
-          style: AppTypography.helper.copyWith(color: AppColors.warning),
-        ),
-      ]),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
+*/
 // _ResultList
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ResultList extends StatelessWidget {
-  final AsyncValue<List<PlaceModel>> gymsAsync;
-  final List<PlaceModel>             filtered;
-  final DiscoverFilter               filter;
-  final String?                      selectedId;
-  final Map<String, GlobalKey>       itemKeys;
-  final ValueChanged<PlaceModel>     onCardTap;
+  final AsyncValue<List<TrainerProfile>> trainersAsync;
+  final List<TrainerProfile> filtered;
 
   const _ResultList({
-    required this.gymsAsync,
+    required this.trainersAsync,
     required this.filtered,
-    required this.filter,
-    required this.selectedId,
-    required this.itemKeys,
-    required this.onCardTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (filter == DiscoverFilter.trainers) {
-      return const _EmptyState(
-        icon:    Icons.person_search_rounded,
-        message: _kEmptyTrainers,
-      );
-    }
-
-    if (gymsAsync.isLoading) return _ShimmerList();
+    if (trainersAsync.isLoading) return _ShimmerList();
 
     if (filtered.isEmpty) {
       return const _EmptyState(
-        icon:    Icons.search_off_rounded,
-        message: _kEmptyGyms,
+        icon: Icons.search_off_rounded,
+        message: _kEmptyTrainers,
       );
     }
 
@@ -472,30 +402,23 @@ class _ResultList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-              _kListPadH, _kListPadV, _kListPadH, 8),
+          padding:
+              const EdgeInsets.fromLTRB(_kListPadH, _kListPadV, _kListPadH, 8),
           child: Text(
-            '${filtered.length} gym${filtered.length == 1 ? "" : "s"} nearby',
-            style: AppTypography.helper.copyWith(
-                color: AppColors.textSecondary),
+            '${filtered.length} trainer${filtered.length == 1 ? "" : "s"} found',
+            style:
+                AppTypography.helper.copyWith(color: AppColors.textSecondary),
           ),
         ),
         Expanded(
           child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(
-                _kListPadH, 0, _kListPadH, 96),
-            itemCount:        filtered.length,
+            padding: const EdgeInsets.fromLTRB(_kListPadH, 0, _kListPadH, 96),
+            itemCount: filtered.length,
             separatorBuilder: (_, __) => const SizedBox(height: _kCardGap),
             itemBuilder: (ctx, i) {
-              final place = filtered[i];
-              itemKeys[place.placeId] ??= GlobalKey();
-              return KeyedSubtree(
-                key:   itemKeys[place.placeId],
-                child: GymCard(
-                  place:      place,
-                  isSelected: place.placeId == selectedId,
-                  onTap:      () => onCardTap(place),
-                ),
+              final trainer = filtered[i];
+              return TrainerCard(
+                trainer: trainer,
               );
             },
           ),
@@ -517,7 +440,7 @@ class _ShimmerList extends StatefulWidget {
 class _ShimmerListState extends State<_ShimmerList>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
-  late Animation<double>   _anim;
+  late Animation<double> _anim;
 
   @override
   void initState() {
@@ -538,14 +461,14 @@ class _ShimmerListState extends State<_ShimmerList>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _anim,
-      builder:   (_, __) {
+      builder: (_, __) {
         final shimmer =
             Color.lerp(AppColors.surfaceMid, AppColors.border, _anim.value)!;
         return ListView.separated(
-          padding:          const EdgeInsets.all(_kListPadH),
-          itemCount:        5,
+          padding: const EdgeInsets.all(_kListPadH),
+          itemCount: 5,
           separatorBuilder: (_, __) => const SizedBox(height: _kCardGap),
-          itemBuilder:      (_, __) => _ShimmerCard(color: shimmer),
+          itemBuilder: (_, __) => _ShimmerCard(color: shimmer),
         );
       },
     );
@@ -559,38 +482,36 @@ class _ShimmerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height:     86,
-      padding:    const EdgeInsets.all(16),
+      height: 86,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color:        AppColors.surface,
+        color: AppColors.surface,
         borderRadius: AppRadius.cardBR,
-        border:       Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(children: [
         Container(
             width: 48,
             height: 48,
-            decoration: BoxDecoration(
-                color: color, borderRadius: AppRadius.inputBR)),
+            decoration:
+                BoxDecoration(color: color, borderRadius: AppRadius.inputBR)),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment:  MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
                   height: 14,
-                  width:  double.infinity,
+                  width: double.infinity,
                   decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(4))),
+                      color: color, borderRadius: BorderRadius.circular(4))),
               const SizedBox(height: 8),
               Container(
                   height: 10,
-                  width:  140,
+                  width: 140,
                   decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(4))),
+                      color: color, borderRadius: BorderRadius.circular(4))),
             ],
           ),
         ),
@@ -605,7 +526,7 @@ class _ShimmerCard extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   final IconData icon;
-  final String   message;
+  final String message;
   const _EmptyState({required this.icon, required this.message});
 
   @override
@@ -621,8 +542,8 @@ class _EmptyState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: AppTypography.body.copyWith(
-                  color: AppColors.textSecondary),
+              style:
+                  AppTypography.body.copyWith(color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -638,8 +559,8 @@ class _EmptyState extends StatelessWidget {
 class _LoadingScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.background,
-    body: Center(
-        child: CircularProgressIndicator(color: AppColors.primary)),
-  );
+        backgroundColor: AppColors.background,
+        body:
+            Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
 }

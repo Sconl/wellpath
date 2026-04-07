@@ -33,7 +33,7 @@ const double kLoginFormPaddingH = 36.0;
 const double kLoginFormPaddingV = 48.0;
 
 const double kLoginSubtitleSize = 14.0;
-const String kLoginGifPath = 'animated-gifs/login_digital_screen_male.gif';
+const String kLoginGifPath = 'gifs/login_digital_screen_male.gif';
 const double kLoginImagePaddingH = 48.0;
 
 // Set to false before shipping to production.
