@@ -14,8 +14,32 @@ import '../../bookings/providers/bookings_providers.dart';
 import '../../../core/navigation/app_nav.dart';
 import '../providers/discover_providers.dart';
 
+// ─────────────────────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────────────────────
+
 const double _kHorizPad = 20.0;
-const double _kStickyBarH = 72.0;
+const double _kStickyBarH = 80.0;
+const double _kAvatarRadius = 44.0;
+const double _kHeroHeight = 260.0;
+const double _kSectionGap = 24.0;
+
+const _kDaysFull = [
+  'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'
+];
+const _kDaysShort = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const _kMonths = [
+  'Jan','Feb','Mar','Apr','May','Jun',
+  'Jul','Aug','Sep','Oct','Nov','Dec'
+];
+const _kMonthsFull = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December'
+];
+
+// ─────────────────────────────────────────────────────────────
+// SCREEN
+// ─────────────────────────────────────────────────────────────
 
 class TrainerProfileScreen extends ConsumerWidget {
   final String trainerId;
@@ -32,7 +56,9 @@ class TrainerProfileScreen extends ConsumerWidget {
       displayName: currentUserAsync.value?.displayName ?? '',
       photoUrl: currentUserAsync.value?.photoUrl,
       child: trainerAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
         error: (_, __) => const Center(child: Text('Trainer not found.')),
         data: (trainer) {
           if (trainer == null) {
@@ -45,7 +71,9 @@ class TrainerProfileScreen extends ConsumerWidget {
   }
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// PROFILE BODY
+// ─────────────────────────────────────────────────────────────
 
 class _ProfileBody extends ConsumerStatefulWidget {
   final TrainerProfile trainer;
@@ -60,7 +88,8 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
 
   void _selectSlot(AvailabilitySlot slot) {
     setState(() {
-      _selectedSlot = _selectedSlot?.id == slot.id ? null : slot;
+      _selectedSlot =
+          _selectedSlot?.id == slot.id ? null : slot;
     });
   }
 
@@ -98,15 +127,19 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
 
   @override
   Widget build(BuildContext context) {
-    final slotsAsync = ref.watch(trainerSlotsProvider(widget.trainer.id));
+    final slotsAsync =
+        ref.watch(trainerSlotsProvider(widget.trainer.id));
 
     final slots = slotsAsync.maybeWhen(
       data: (data) => data,
       orElse: () => const <AvailabilitySlot>[],
     );
 
-    final availableSlots = slots.where((s) => s.status.isBookable).toList()
-      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+    final availableSlots = slots
+        .where((s) => s.status.isBookable)
+        .toList()
+      ..sort((a, b) =>
+          a.startTime.compareTo(b.startTime));
 
     return AppCanvas(
       type: BackgroundType.meshParticle,
@@ -123,53 +156,63 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
                       16,
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
-                    _ProfileHeader(trainer: widget.trainer),
-                    const SizedBox(height: 24),
+                    _HeroHeader(trainer: widget.trainer),
 
                     Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: _kHorizPad),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Available Slots',
-                              style: AppTypography.h4),
-                          const SizedBox(height: 10),
+                      padding: const EdgeInsets.fromLTRB(
+                          _kHorizPad,
+                          _kSectionGap,
+                          _kHorizPad,
+                          0),
+                      child:
+                          _StatsStrip(trainer: widget.trainer),
+                    ),
 
-                          Builder(
-                            builder: (_) {
-                              if (slotsAsync.isLoading &&
-                                  slots.isEmpty) {
-                                return const Center(
-                                    child:
-                                        CircularProgressIndicator());
-                              }
+                    if (widget.trainer.specialties.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                            _kHorizPad,
+                            _kSectionGap,
+                            _kHorizPad,
+                            0),
+                        child: _SpecialtiesSection(
+                          specialties:
+                              widget.trainer.specialties,
+                        ),
+                      ),
 
-                              if (slotsAsync.hasError &&
-                                  slots.isEmpty) {
-                                return const Text(
-                                    'Failed to load slots');
-                              }
+                    if (widget.trainer.bio.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                            _kHorizPad,
+                            _kSectionGap,
+                            _kHorizPad,
+                            0),
+                        child: _BioSection(
+                          bio: widget.trainer.bio,
+                        ),
+                      ),
 
-                              if (availableSlots.isEmpty) {
-                                return _NoSlotsState(
-                                  trainerName:
-                                      widget.trainer.displayName,
-                                );
-                              }
-
-                              return _SlotGrid(
-                                slots: availableSlots,
-                                selectedSlot: _selectedSlot,
-                                onSelect: _selectSlot,
-                              );
-                            },
-                          ),
-                        ],
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                          _kHorizPad,
+                          _kSectionGap,
+                          _kHorizPad,
+                          0),
+                      child: _SlotsSection(
+                        slotsAsync: slotsAsync,
+                        slots: availableSlots,
+                        selectedSlot: _selectedSlot,
+                        onSelect: _selectSlot,
+                        trainerName:
+                            widget.trainer.displayName,
                       ),
                     ),
+
+                    const SizedBox(height: _kSectionGap),
                   ],
                 ),
               ),
@@ -187,27 +230,97 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
   }
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// HERO HEADER
+// ─────────────────────────────────────────────────────────────
 
-class _ProfileHeader extends StatelessWidget {
+class _HeroHeader extends StatelessWidget {
   final TrainerProfile trainer;
-  const _ProfileHeader({required this.trainer});
+  const _HeroHeader({required this.trainer});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: AppDecorations.card,
-      child: Row(
+    return SizedBox(
+      height: _kHeroHeight,
+      child: Stack(
         children: [
-          IconButton(
-            onPressed: () => context.go('/trainers'),
-            icon: const Icon(Icons.arrow_back),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary
+                        .withValues(alpha: 0.25),
+                    AppColors.background,
+                  ],
+                ),
+              ),
+            ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(trainer.displayName,
-                style: AppTypography.h3),
+          Positioned(
+            left: _kHorizPad,
+            bottom: 0,
+            right: _kHorizPad,
+            child: Row(
+              crossAxisAlignment:
+                  CrossAxisAlignment.end,
+              children: [
+                Container(
+                  width: _kAvatarRadius * 2,
+                  height: _kAvatarRadius * 2,
+                  decoration: BoxDecoration(
+                    gradient: AppGradients.avatar,
+                    borderRadius:
+                        BorderRadius.circular(22),
+                  ),
+                  child: trainer.photoUrl != null &&
+                          trainer.photoUrl!.isNotEmpty
+                      ? ClipRRect(
+                          borderRadius:
+                              BorderRadius.circular(20),
+                          child: Image.network(
+                            trainer.photoUrl!,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            trainer.initials,
+                            style: AppTypography.h2
+                                .copyWith(
+                                    color:
+                                        AppColors.onPrimary),
+                          ),
+                        ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(trainer.displayName,
+                          style: AppTypography.h2),
+                      Text(
+                        'Certified Personal Trainer',
+                        style: AppTypography.helper
+                            .copyWith(
+                                color: AppColors
+                                    .textSecondary),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(trainer.locationName,
+                          style: AppTypography.caption),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${trainer.rating.toStringAsFixed(1)} ★',
+                        style: AppTypography.helper,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -215,73 +328,149 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// STATS STRIP
+// ─────────────────────────────────────────────────────────────
 
-class _SlotGrid extends StatelessWidget {
-  final List<AvailabilitySlot> slots;
-  final AvailabilitySlot? selectedSlot;
-  final ValueChanged<AvailabilitySlot> onSelect;
-
-  const _SlotGrid({
-    required this.slots,
-    required this.selectedSlot,
-    required this.onSelect,
-  });
-
-  String _formatTime(DateTime dt) {
-    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-    final minute = dt.minute.toString().padLeft(2, '0');
-    final meridiem = dt.hour < 12 ? 'AM' : 'PM';
-    return '$hour:$minute $meridiem';
-  }
+class _StatsStrip extends StatelessWidget {
+  final TrainerProfile trainer;
+  const _StatsStrip({required this.trainer});
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = (constraints.maxWidth - 20) / 3;
-
-        return Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: slots.map((slot) {
-            final selected = selectedSlot?.id == slot.id;
-
-            return GestureDetector(
-              onTap: () => onSelect(slot),
-              child: Container(
-                width: width,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? AppColors.primary.withOpacity(0.12)
-                      : AppColors.surface,
-                  border: Border.all(
-                    color: selected
-                        ? AppColors.primary
-                        : AppColors.border,
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Text(_formatTime(slot.startTime)),
-                    const SizedBox(height: 4),
-                    Text(_formatTime(slot.endTime)),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-        );
-      },
+    return Row(
+      children: [
+        Expanded(
+          child: _StatCell(
+            value: trainer.yearsExperience != null
+                ? '${trainer.yearsExperience}yr'
+                : '—',
+            label: 'Experience',
+          ),
+        ),
+        Expanded(
+          child: _StatCell(
+            value: trainer.sessionRate != null
+                ? 'KES ${trainer.sessionRate!.toInt()}'
+                : 'Varies',
+            label: 'Rate',
+          ),
+        ),
+        Expanded(
+          child: _StatCell(
+            value: '${trainer.reviewCount}',
+            label: 'Reviews',
+          ),
+        ),
+        Expanded(
+          child: _StatCell(
+            value: trainer.rating
+                .toStringAsFixed(1),
+            label: 'Rating',
+          ),
+        ),
+      ],
     );
   }
 }
 
-// ─────────────────────────────────────────────
+class _StatCell extends StatelessWidget {
+  final String value;
+  final String label;
+
+  const _StatCell({
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(value, style: AppTypography.h4),
+        Text(label, style: AppTypography.caption),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// SPECIALTIES
+// ─────────────────────────────────────────────────────────────
+
+class _SpecialtiesSection extends StatelessWidget {
+  final List<String> specialties;
+  const _SpecialtiesSection({required this.specialties});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      children:
+          specialties.map((s) => Chip(label: Text(s))).toList(),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// BIO
+// ─────────────────────────────────────────────────────────────
+
+class _BioSection extends StatelessWidget {
+  final String bio;
+  const _BioSection({required this.bio});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(bio, style: AppTypography.body);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// SLOTS
+// ─────────────────────────────────────────────────────────────
+
+class _SlotsSection extends StatelessWidget {
+  final AsyncValue<List<AvailabilitySlot>> slotsAsync;
+  final List<AvailabilitySlot> slots;
+  final AvailabilitySlot? selectedSlot;
+  final ValueChanged<AvailabilitySlot> onSelect;
+  final String trainerName;
+
+  const _SlotsSection({
+    required this.slotsAsync,
+    required this.slots,
+    required this.selectedSlot,
+    required this.onSelect,
+    required this.trainerName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (slots.isEmpty) {
+      return const Text('No slots available');
+    }
+
+    return Wrap(
+      spacing: 8,
+      children: slots.map((slot) {
+        final selected =
+            selectedSlot?.id == slot.id;
+
+        return ChoiceChip(
+          label: Text(
+              '${slot.startTime.hour}:${slot.startTime.minute.toString().padLeft(2, '0')}'),
+          selected: selected,
+          onSelected: (_) => onSelect(slot),
+        );
+      }).toList(),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// STICKY BAR
+// ─────────────────────────────────────────────────────────────
 
 class _StickyBookBar extends StatelessWidget {
   final TrainerProfile trainer;
@@ -296,29 +485,21 @@ class _StickyBookBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasSlot = selectedSlot != null;
+
     return Container(
       padding: const EdgeInsets.all(16),
       child: ElevatedButton(
-        onPressed: selectedSlot == null ? null : onBook,
-        child: const Text('Book'),
+        onPressed: hasSlot ? onBook : null,
+        child: const Text('Book Now'),
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────
-
-class _NoSlotsState extends StatelessWidget {
-  final String trainerName;
-  const _NoSlotsState({required this.trainerName});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text('No slots available'));
-  }
-}
-
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// BOOKING SHEET
+// ─────────────────────────────────────────────────────────────
 
 class _BookingConfirmSheet extends ConsumerStatefulWidget {
   final TrainerProfile trainer;
@@ -350,7 +531,8 @@ class _BookingConfirmSheetState
           slot: widget.slot,
         );
 
-    ref.invalidate(trainerSlotsProvider(widget.trainer.id));
+    ref.invalidate(
+        trainerSlotsProvider(widget.trainer.id));
 
     if (mounted) {
       Navigator.pop(context);
@@ -361,10 +543,18 @@ class _BookingConfirmSheetState
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _confirmBooking,
-        child: const Text('Confirm Booking'),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Confirm Booking',
+              style: AppTypography.h3),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: _isLoading ? null : _confirmBooking,
+            child: const Text('Confirm'),
+          ),
+        ],
       ),
     );
   }
