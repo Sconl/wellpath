@@ -11,6 +11,15 @@
 //            imports removed from this file — zero SDK coupling.
 //            Works on mobile (Mapbox) and web (flutter_map + OSM) with no
 //            changes to this file. The engine is selected at compile time.
+//   v3.4.0 — Card grid rebuilt: two equal-height rows.
+//            Row 1: Map | Calendar. Row 2: Wellness | Next Session | Goals.
+//            IntrinsicHeight + CrossAxisAlignment.stretch ensures cards in
+//            the same row always share the same height. Reflowing to a
+//            single column below _kBreakMid (550 px).
+//   v3.4.1 — FIX: Replaced GridView.builder in _BookingCalendarCard with a
+//            manual Column/Row calendar grid. GridView does not implement
+//            intrinsic height, causing an infinite assertion loop
+//            (box.dart:2251) whenever the card lived inside IntrinsicHeight.
 //
 //   Navigation: AppNavShell drives all nav.
 //   Background: AppBackground (meshParticle + drift + pulse).
@@ -25,10 +34,10 @@
 //   │ Card 5 _GoalsCard           Streak + workout pips + weight progress bar. │
 //   └─────────────────────────────────────────────────────────────────────────┘
 //
-//   Responsive (content-column width via LayoutBuilder):
-//   ≥ 900 px   Row[Card1(55%) | Card2(45%)] + Row[Card3 | Card4(44%) | Card5]
-//   550-899px  Card1 / Row[Card2 | Card3] / Row[Card4 | Card5]
-//   < 550 px   Card1 / Card2 / Row[Card3 | Card4] / Card5
+//   Grid layout (content-column width via LayoutBuilder):
+//   ≥ 550 px   Row[Card1 | Card2]  (equal height)
+//              Row[Card3 | Card4 | Card5]  (equal height)
+//   < 550 px   Card1 / Card2 / Card3 / Card4 / Card5  (single column)
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/material.dart';
@@ -57,8 +66,8 @@ import '../../core/models/trainer_profile.dart';
 const double _kHorizPad = 24.0;
 const double _kVertPad = 24.0;
 const double _kCardGap = 14.0;
-const double _kBreakWide = 900.0; // content-column width breakpoints
-const double _kBreakMid = 550.0;
+const double _kBreakWide = 900.0; // kept for trainer dashboard
+const double _kBreakMid = 550.0;  // single-column reflow threshold
 
 // ── Card 1 — Nearby Map ──
 const double _kMapCardPadding = 20.0;
@@ -368,7 +377,22 @@ class _DashHeader extends ConsumerWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _CardGrid — 5-card responsive layout
+// _CardGrid
+//
+// Two equal-height rows on screens ≥ 550 px wide:
+//   Row 1 ── Map (50%)  |  Calendar (50%)
+//   Row 2 ── Wellness (33%)  |  Next Session (33%)  |  Goals (33%)
+//
+// IntrinsicHeight measures the tallest card in each row and stretches all
+// siblings to that height via CrossAxisAlignment.stretch. Each card's
+// Container responds to tight vertical constraints, filling the row height
+// while keeping content top-aligned inside its Column.
+//
+// Below 550 px all five cards stack in a single column.
+//
+// NOTE: _BookingCalendarCard must NOT use GridView internally — GridView
+// does not support intrinsic height and will crash inside IntrinsicHeight.
+// The calendar grid is built with plain Column + Row widgets instead.
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _CardGrid extends StatelessWidget {
@@ -381,51 +405,52 @@ class _CardGrid extends StatelessWidget {
     return LayoutBuilder(builder: (ctx, box) {
       final w = box.maxWidth;
 
-      if (w >= _kBreakWide) {
-        return Column(children: [
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Expanded(flex: 55, child: _NearbyMapCard()),
-            const SizedBox(width: _kCardGap),
-            Expanded(flex: 45, child: _BookingCalendarCard(bookings: bookings)),
-          ]),
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(flex: 28, child: _WellnessRingsCard(logs: logs)),
-            const SizedBox(width: _kCardGap),
-            Expanded(flex: 44, child: _NextSessionCard(bookings: bookings)),
-            const SizedBox(width: _kCardGap),
-            Expanded(flex: 28, child: _GoalsCard(logs: logs)),
-          ]),
-        ]);
-      }
-
+      // ── Two-row tiled layout (≥ 550 px) ──────────────────────────────
       if (w >= _kBreakMid) {
-        return Column(children: [
-          const _NearbyMapCard(),
-          const SizedBox(height: _kCardGap),
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(child: _BookingCalendarCard(bookings: bookings)),
-            const SizedBox(width: _kCardGap),
-            Expanded(child: _WellnessRingsCard(logs: logs)),
-          ]),
-          const SizedBox(height: _kCardGap),
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(child: _NextSessionCard(bookings: bookings)),
-            const SizedBox(width: _kCardGap),
-            Expanded(child: _GoalsCard(logs: logs)),
-          ]),
-        ]);
+        return Column(
+          children: [
+            // Row 1 — Map + Calendar
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Expanded(child: _NearbyMapCard()),
+                  const SizedBox(width: _kCardGap),
+                  Expanded(
+                    child: _BookingCalendarCard(bookings: bookings),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: _kCardGap),
+
+            // Row 2 — Wellness + Next Session + Goals
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: _WellnessRingsCard(logs: logs)),
+                  const SizedBox(width: _kCardGap),
+                  Expanded(child: _NextSessionCard(bookings: bookings)),
+                  const SizedBox(width: _kCardGap),
+                  Expanded(child: _GoalsCard(logs: logs)),
+                ],
+              ),
+            ),
+          ],
+        );
       }
 
+      // ── Single-column reflow (< 550 px) ──────────────────────────────
       return Column(children: [
         const _NearbyMapCard(),
         const SizedBox(height: _kCardGap),
         _BookingCalendarCard(bookings: bookings),
         const SizedBox(height: _kCardGap),
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(child: _WellnessRingsCard(logs: logs)),
-          const SizedBox(width: _kCardGap),
-          Expanded(child: _NextSessionCard(bookings: bookings)),
-        ]),
+        _WellnessRingsCard(logs: logs),
+        const SizedBox(height: _kCardGap),
+        _NextSessionCard(bookings: bookings),
         const SizedBox(height: _kCardGap),
         _GoalsCard(logs: logs),
       ]);
@@ -625,6 +650,18 @@ class _NearbyMapCardState extends ConsumerState<_NearbyMapCard> {
 
 // ═════════════════════════════════════════════════════════════════════════════
 // CARD 2 — _BookingCalendarCard
+//
+// FIX v3.4.1: The previous implementation used GridView.builder to render
+// the calendar day cells. GridView does not implement computeMinIntrinsicHeight
+// / computeMaxIntrinsicHeight, which causes Flutter to throw:
+//
+//   Assertion failed: box.dart:2251:12  (hasSize is false)
+//
+// …in an infinite loop whenever this card is placed inside IntrinsicHeight.
+//
+// Solution: build the calendar grid manually using nested Column + Row
+// widgets. These correctly report their intrinsic dimensions, so
+// IntrinsicHeight can size the surrounding Row without error.
 // ═════════════════════════════════════════════════════════════════════════════
 
 class _BookingCalendarCard extends StatefulWidget {
@@ -653,18 +690,8 @@ class _BookingCalendarCardState extends State<_BookingCalendarCard> {
       .toSet();
 
   static const _mn = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec'
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
   ];
 
   void _prev() =>
@@ -682,7 +709,6 @@ class _BookingCalendarCardState extends State<_BookingCalendarCard> {
     }).toList();
 
     if (dayBookings.isNotEmpty) {
-      // Show bookings
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -711,21 +737,106 @@ class _BookingCalendarCardState extends State<_BookingCalendarCard> {
         ),
       );
     } else {
-      // Go to discover to book
       context.go('/discover');
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
+  // ── Build the calendar grid as plain Row/Column widgets ──────────────────
+  //
+  // We flatten all cells (leading blanks + day numbers) into a single list,
+  // then slice it into rows of 7.  Each cell is a fixed 34×34 box so the
+  // grid has a known intrinsic height that IntrinsicHeight can measure.
+  Widget _buildCalendarGrid() {
     final days = DateUtils.getDaysInMonth(_month.year, _month.month);
     final leading = DateTime(_month.year, _month.month, 1).weekday - 1;
+    final booked = _booked;
+
+    // Total cells needed (pad tail to complete the last week row).
+    final total = leading + days;
+    final rows = (total / 7).ceil();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(rows, (rowIdx) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Row(
+            children: List.generate(7, (colIdx) {
+              final cellIdx = rowIdx * 7 + colIdx;
+              // Blank leading/trailing cells.
+              if (cellIdx < leading || cellIdx >= total) {
+                return const Expanded(child: SizedBox(height: 34));
+              }
+
+              final day = cellIdx - leading + 1;
+              final isToday = _month.year == _today.year &&
+                  _month.month == _today.month &&
+                  day == _today.day;
+              final hasBook = booked.contains(day);
+
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => _onDayTap(day),
+                  child: Center(
+                    child: Container(
+                      width: 27,
+                      height: 27,
+                      decoration: BoxDecoration(
+                        color:
+                            isToday ? AppColors.primary : Colors.transparent,
+                        shape: BoxShape.circle,
+                        border: hasBook && !isToday
+                            ? Border.all(
+                                color: AppColors.primary, width: 1.5)
+                            : null,
+                      ),
+                      child: Stack(alignment: Alignment.center, children: [
+                        Text(
+                          '$day',
+                          style: AppTypography.caption.copyWith(
+                            color: isToday
+                                ? AppColors.onPrimary
+                                : hasBook
+                                    ? AppColors.primary
+                                    : AppColors.textMuted,
+                            fontWeight: isToday || hasBook
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
+                        ),
+                        if (hasBook && !isToday)
+                          Positioned(
+                            bottom: 3,
+                            child: Container(
+                              width: 4,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ]),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        );
+      }),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final booked = _booked;
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: AppDecorations.card,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // ── Header ──────────────────────────────────────────────────────────
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text('Training Calendar', style: AppTypography.h4),
           Row(children: [
@@ -741,6 +852,8 @@ class _BookingCalendarCardState extends State<_BookingCalendarCard> {
           ]),
         ]),
         const SizedBox(height: 14),
+
+        // ── Day-of-week labels ───────────────────────────────────────────────
         Row(
           children: ['M', 'T', 'W', 'T', 'F', 'S', 'S']
               .map((d) => Expanded(
@@ -752,70 +865,13 @@ class _BookingCalendarCardState extends State<_BookingCalendarCard> {
               .toList(),
         ),
         const SizedBox(height: 8),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: leading + days,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 7,
-            childAspectRatio: 1,
-            mainAxisSpacing: 4,
-            crossAxisSpacing: 0,
-          ),
-          itemBuilder: (_, i) {
-            if (i < leading) return const SizedBox();
-            final day = i - leading + 1;
-            final isToday = _month.year == _today.year &&
-                _month.month == _today.month &&
-                day == _today.day;
-            final hasBook = booked.contains(day);
 
-            return GestureDetector(
-              onTap: () => _onDayTap(day),
-              child: Center(
-                child: Container(
-                  width: 27,
-                  height: 27,
-                  decoration: BoxDecoration(
-                    color: isToday ? AppColors.primary : Colors.transparent,
-                    shape: BoxShape.circle,
-                    border: hasBook && !isToday
-                        ? Border.all(color: AppColors.primary, width: 1.5)
-                        : null,
-                  ),
-                  child: Stack(alignment: Alignment.center, children: [
-                    Text(
-                      '$day',
-                      style: AppTypography.caption.copyWith(
-                        color: isToday
-                            ? AppColors.onPrimary
-                            : hasBook
-                                ? AppColors.primary
-                                : AppColors.textMuted,
-                        fontWeight: isToday || hasBook
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                      ),
-                    ),
-                    if (hasBook && !isToday)
-                      Positioned(
-                        bottom: 3,
-                        child: Container(
-                          width: 4,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                  ]),
-                ),
-              ),
-            );
-          },
-        ),
+        // ── Calendar grid (plain Row/Column — intrinsic-height safe) ─────────
+        _buildCalendarGrid(),
+
         const SizedBox(height: 12),
+
+        // ── Legend ───────────────────────────────────────────────────────────
         Row(children: [
           _CalLegend(color: AppColors.primary, dot: false, label: 'Today'),
           const SizedBox(width: 14),
@@ -1096,18 +1152,8 @@ class _SessionDetail extends StatelessWidget {
   const _SessionDetail({required this.booking});
 
   static const _mo = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec'
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
   ];
   static const _dy = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 

@@ -240,90 +240,236 @@ class _HeroHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: _kHeroHeight,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary
-                        .withValues(alpha: 0.25),
-                    AppColors.background,
-                  ],
+    return Stack(
+      children: [
+        // ── Background gradient ──────────────────────────
+        Container(
+          height: _kHeroHeight,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppColors.primary.withValues(alpha: 0.18),
+                AppColors.background,
+              ],
+            ),
+          ),
+        ),
+
+        // ── Back button ──────────────────────────────────
+        Positioned(
+          top: 10,
+          left: 8,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                } else {
+                  context.go('/trainers');
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.background
+                      .withValues(alpha: 0.6),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AppColors.border,
+                    width: 1,
+                  ),
+                ),
+                child: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 16,
+                  color: AppColors.textPrimary,
                 ),
               ),
             ),
           ),
-          Positioned(
-            left: _kHorizPad,
-            bottom: 0,
-            right: _kHorizPad,
-            child: Row(
-              crossAxisAlignment:
-                  CrossAxisAlignment.end,
-              children: [
-                Container(
-                  width: _kAvatarRadius * 2,
-                  height: _kAvatarRadius * 2,
-                  decoration: BoxDecoration(
-                    gradient: AppGradients.avatar,
-                    borderRadius:
-                        BorderRadius.circular(22),
-                  ),
-                  child: trainer.photoUrl != null &&
-                          trainer.photoUrl!.isNotEmpty
-                      ? ClipRRect(
-                          borderRadius:
-                              BorderRadius.circular(20),
-                          child: Image.network(
-                            trainer.photoUrl!,
-                            fit: BoxFit.cover,
-                          ),
-                        )
-                      : Center(
-                          child: Text(
-                            trainer.initials,
-                            style: AppTypography.h2
-                                .copyWith(
-                                    color:
-                                        AppColors.onPrimary),
-                          ),
+        ),
+
+        // ── Profile card at bottom ───────────────────────
+        Positioned(
+          left: _kHorizPad,
+          right: _kHorizPad,
+          bottom: 0,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Avatar + name row
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Avatar
+                  Container(
+                    width: _kAvatarRadius * 2,
+                    height: _kAvatarRadius * 2,
+                    decoration: BoxDecoration(
+                      gradient: AppGradients.avatar,
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                        color: AppColors.primary
+                            .withValues(alpha: 0.4),
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary
+                              .withValues(alpha: 0.2),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    children: [
-                      Text(trainer.displayName,
-                          style: AppTypography.h2),
-                      Text(
-                        'Certified Personal Trainer',
-                        style: AppTypography.helper
-                            .copyWith(
-                                color: AppColors
-                                    .textSecondary),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(trainer.locationName,
-                          style: AppTypography.caption),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${trainer.rating.toStringAsFixed(1)} ★',
-                        style: AppTypography.helper,
-                      ),
-                    ],
+                      ],
+                    ),
+                    child: trainer.photoUrl != null &&
+                            trainer.photoUrl!.isNotEmpty
+                        ? ClipRRect(
+                            borderRadius:
+                                BorderRadius.circular(20),
+                            child: Image.network(
+                              trainer.photoUrl!,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              trainer.initials,
+                              style: AppTypography.h2
+                                  .copyWith(
+                                      color: AppColors
+                                          .onPrimary),
+                            ),
+                          ),
                   ),
-                ),
-              ],
-            ),
+
+                  const SizedBox(width: 14),
+
+                  // Name + title + verified badge
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                trainer.displayName,
+                                style: AppTypography.h2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding:
+                                  const EdgeInsets.symmetric(
+                                      horizontal: 7,
+                                      vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary
+                                    .withValues(alpha: 0.15),
+                                borderRadius:
+                                    BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize:
+                                    MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons
+                                        .verified_rounded,
+                                    size: 10,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    'Verified',
+                                    style: AppTypography
+                                        .caption
+                                        .copyWith(
+                                      fontSize: 9,
+                                      color:
+                                          AppColors.primary,
+                                      fontWeight:
+                                          FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Certified Personal Trainer',
+                          style: AppTypography.helper
+                              .copyWith(
+                                  color: AppColors
+                                      .textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // Location + rating row
+              Row(
+                children: [
+                  Icon(
+                    Icons.location_on_outlined,
+                    size: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      trainer.locationName,
+                      style: AppTypography.caption
+                          .copyWith(
+                              color:
+                                  AppColors.textSecondary),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Icon(
+                    Icons.star_rounded,
+                    size: 14,
+                    color: const Color(0xFFFFC107),
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    trainer.rating.toStringAsFixed(1),
+                    style: AppTypography.helper
+                        .copyWith(
+                            fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '(${trainer.reviewCount})',
+                    style: AppTypography.caption
+                        .copyWith(
+                            color:
+                                AppColors.textSecondary),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 14),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -338,9 +484,19 @@ class _StatsStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.border,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
           child: _StatCell(
             value: trainer.yearsExperience != null
                 ? '${trainer.yearsExperience}yr'
@@ -348,28 +504,44 @@ class _StatsStrip extends StatelessWidget {
             label: 'Experience',
           ),
         ),
+        _StatDivider(),
         Expanded(
           child: _StatCell(
             value: trainer.sessionRate != null
                 ? 'KES ${trainer.sessionRate!.toInt()}'
                 : 'Varies',
-            label: 'Rate',
+            label: 'Per Session',
           ),
         ),
+        _StatDivider(),
         Expanded(
           child: _StatCell(
             value: '${trainer.reviewCount}',
             label: 'Reviews',
           ),
         ),
+        _StatDivider(),
         Expanded(
           child: _StatCell(
-            value: trainer.rating
-                .toStringAsFixed(1),
+            value: trainer.rating.toStringAsFixed(1),
             label: 'Rating',
           ),
         ),
       ],
+      ),
+    );
+  }
+}
+
+class _StatDivider extends StatelessWidget {
+  const _StatDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 32,
+      color: AppColors.border,
     );
   }
 }
@@ -387,7 +559,10 @@ class _StatCell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(value, style: AppTypography.h4),
+        Text(value,
+            style: AppTypography.h4
+                .copyWith(color: AppColors.primary)),
+        const SizedBox(height: 2),
         Text(label, style: AppTypography.caption),
       ],
     );
@@ -406,8 +581,27 @@ class _SpecialtiesSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Wrap(
       spacing: 8,
-      children:
-          specialties.map((s) => Chip(label: Text(s))).toList(),
+      runSpacing: 8,
+      children: specialties
+          .map((s) => Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.primary
+                      .withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppColors.primary
+                        .withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Text(s,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    )),
+              ))
+          .toList(),
     );
   }
 }
@@ -427,10 +621,10 @@ class _BioSection extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────
-// SLOTS
+// SLOTS  (calendar / planner layout)
 // ─────────────────────────────────────────────────────────────
 
-class _SlotsSection extends StatelessWidget {
+class _SlotsSection extends StatefulWidget {
   final AsyncValue<List<AvailabilitySlot>> slotsAsync;
   final List<AvailabilitySlot> slots;
   final AvailabilitySlot? selectedSlot;
@@ -446,24 +640,420 @@ class _SlotsSection extends StatelessWidget {
   });
 
   @override
+  State<_SlotsSection> createState() => _SlotsSectionState();
+}
+
+class _SlotsSectionState extends State<_SlotsSection> {
+  DateTime? _focusedDay;
+
+  // ── helpers ──────────────────────────────────────────────
+
+  DateTime _dayOnly(DateTime dt) =>
+      DateTime(dt.year, dt.month, dt.day);
+
+  Map<DateTime, List<AvailabilitySlot>> _groupByDay(
+      List<AvailabilitySlot> slots) {
+    final map = <DateTime, List<AvailabilitySlot>>{};
+    for (final s in slots) {
+      final key = _dayOnly(s.startTime);
+      map.putIfAbsent(key, () => []).add(s);
+    }
+    return map;
+  }
+
+  String _formatTime(DateTime dt) {
+    final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final m = dt.minute.toString().padLeft(2, '0');
+    final amPm = dt.hour < 12 ? 'AM' : 'PM';
+    return '$h:$m $amPm';
+  }
+
+  String _periodLabel(int hour) {
+    if (hour < 12) return 'Morning';
+    if (hour < 17) return 'Afternoon';
+    return 'Evening';
+  }
+
+  IconData _periodIcon(int hour) {
+    if (hour < 12) return Icons.wb_sunny_outlined;
+    if (hour < 17) return Icons.wb_cloudy_outlined;
+    return Icons.nights_stay_outlined;
+  }
+
+  // ── build ─────────────────────────────────────────────────
+
+  @override
   Widget build(BuildContext context) {
-    if (slots.isEmpty) {
-      return const Text('No slots available');
+    // Loading state
+    if (widget.slotsAsync is AsyncLoading) {
+      return _buildLoadingShimmer();
     }
 
-    return Wrap(
-      spacing: 8,
-      children: slots.map((slot) {
-        final selected =
-            selectedSlot?.id == slot.id;
+    if (widget.slots.isEmpty) {
+      return _buildEmptyState();
+    }
 
-        return ChoiceChip(
-          label: Text(
-              '${slot.startTime.hour}:${slot.startTime.minute.toString().padLeft(2, '0')}'),
-          selected: selected,
-          onSelected: (_) => onSelect(slot),
-        );
-      }).toList(),
+    final grouped = _groupByDay(widget.slots);
+    final days = grouped.keys.toList()..sort();
+
+    // Default to first day if nothing focused yet
+    _focusedDay ??= days.first;
+    // Guard: if focused day no longer has slots, reset
+    if (!grouped.containsKey(_focusedDay)) {
+      _focusedDay = days.first;
+    }
+
+    final daySlots = grouped[_focusedDay]!
+      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+
+    // Group time-slots by period (Morning / Afternoon / Evening)
+    final Map<String, List<AvailabilitySlot>> byPeriod = {};
+    for (final s in daySlots) {
+      final label = _periodLabel(s.startTime.hour);
+      byPeriod.putIfAbsent(label, () => []).add(s);
+    }
+    const periodOrder = ['Morning', 'Afternoon', 'Evening'];
+
+    // Max slots in any day — used to scale the pip bar
+    final maxSlots = grouped.values
+        .map((l) => l.length)
+        .reduce((a, b) => a > b ? a : b);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Section heading ──────────────────────────────
+        Row(
+          children: [
+            Icon(Icons.calendar_month_outlined,
+                size: 18, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Text('Availability', style: AppTypography.h4),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // ── Day-selector strip ───────────────────────────
+        SizedBox(
+          height: 92,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: days.length,
+            separatorBuilder: (_, __) =>
+                const SizedBox(width: 8),
+            itemBuilder: (context, i) {
+              final day = days[i];
+              final isFocused = _focusedDay == day;
+              final slotCount = grouped[day]!.length;
+
+              return GestureDetector(
+                onTap: () =>
+                    setState(() => _focusedDay = day),
+                child: AnimatedContainer(
+                  duration:
+                      const Duration(milliseconds: 200),
+                  curve: Curves.easeOut,
+                  width: 58,
+                  decoration: BoxDecoration(
+                    color: isFocused
+                        ? AppColors.primary
+                        : AppColors.primary
+                            .withValues(alpha: 0.08),
+                    borderRadius:
+                        BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isFocused
+                          ? AppColors.primary
+                          : AppColors.primary
+                              .withValues(alpha: 0.2),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 10),
+                    child: Column(
+                      mainAxisAlignment:
+                          MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _kDaysShort[day.weekday - 1],
+                          style:
+                              AppTypography.caption.copyWith(
+                            color: isFocused
+                                ? AppColors.onPrimary
+                                : AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          '${day.day}',
+                          style: AppTypography.h4.copyWith(
+                            color: isFocused
+                                ? AppColors.onPrimary
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          _kMonths[day.month - 1],
+                          style:
+                              AppTypography.caption.copyWith(
+                            fontSize: 9,
+                            color: isFocused
+                                ? AppColors.onPrimary
+                                    .withValues(alpha: 0.75)
+                                : AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        // Availability fill bar
+                        SizedBox(
+                          width: 28,
+                          height: 4,
+                          child: ClipRRect(
+                            borderRadius:
+                                BorderRadius.circular(4),
+                            child: Stack(
+                              children: [
+                                Container(
+                                  color: isFocused
+                                      ? AppColors.onPrimary
+                                          .withValues(
+                                              alpha: 0.25)
+                                      : AppColors.primary
+                                          .withValues(
+                                              alpha: 0.15),
+                                ),
+                                FractionallySizedBox(
+                                  widthFactor: (slotCount /
+                                          maxSlots)
+                                      .clamp(0.1, 1.0),
+                                  child: Container(
+                                    color: isFocused
+                                        ? AppColors.onPrimary
+                                        : AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // ── Selected day label ───────────────────────────
+        Row(
+          children: [
+            Text(
+              '${_kDaysFull[_focusedDay!.weekday - 1]}, '
+              '${_focusedDay!.day} '
+              '${_kMonthsFull[_focusedDay!.month - 1]}',
+              style: AppTypography.helper.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color:
+                    AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${daySlots.length} slot${daySlots.length == 1 ? '' : 's'}',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // ── Time slots grouped by period ─────────────────
+        for (final period in periodOrder)
+          if (byPeriod.containsKey(period)) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    _periodIcon(byPeriod[period]!
+                        .first.startTime.hour),
+                    size: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    period.toUpperCase(),
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children:
+                  byPeriod[period]!.map((slot) {
+                final selected =
+                    widget.selectedSlot?.id == slot.id;
+                return GestureDetector(
+                  onTap: () => widget.onSelect(slot),
+                  child: AnimatedContainer(
+                    duration: const Duration(
+                        milliseconds: 180),
+                    curve: Curves.easeOut,
+                    padding:
+                        const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppColors.primary
+                          : AppColors.primary
+                              .withValues(alpha: 0.07),
+                      borderRadius:
+                          BorderRadius.circular(10),
+                      border: Border.all(
+                        color: selected
+                            ? AppColors.primary
+                            : AppColors.primary
+                                .withValues(alpha: 0.25),
+                        width: 1.5,
+                      ),
+                      boxShadow: selected
+                          ? [
+                              BoxShadow(
+                                color: AppColors
+                                    .primary
+                                    .withValues(
+                                        alpha: 0.28),
+                                blurRadius: 10,
+                                offset: const Offset(
+                                    0, 4),
+                              )
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          selected
+                              ? Icons
+                                  .check_circle_rounded
+                              : Icons.schedule_rounded,
+                          size: 13,
+                          color: selected
+                              ? AppColors.onPrimary
+                              : AppColors
+                                  .textSecondary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _formatTime(
+                              slot.startTime),
+                          style: AppTypography.helper
+                              .copyWith(
+                            color: selected
+                                ? AppColors.onPrimary
+                                : AppColors
+                                    .textPrimary,
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+          ],
+      ],
+    );
+  }
+
+  Widget _buildLoadingShimmer() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          height: 16,
+          width: 120,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: List.generate(
+            5,
+            (_) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Container(
+                width: 58,
+                height: 92,
+                decoration: BoxDecoration(
+                  color: AppColors.primary
+                      .withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      alignment: Alignment.center,
+      child: Column(
+        children: [
+          Icon(
+            Icons.calendar_today_outlined,
+            size: 40,
+            color:
+                AppColors.textSecondary.withValues(alpha: 0.4),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No availability right now',
+            style: AppTypography.body
+                .copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 4),
+          Text('Check back soon',
+              style: AppTypography.caption),
+        ],
+      ),
     );
   }
 }
@@ -483,15 +1073,80 @@ class _StickyBookBar extends StatelessWidget {
     required this.onBook,
   });
 
+  String _formatTime(DateTime dt) {
+    final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final m = dt.minute.toString().padLeft(2, '0');
+    final amPm = dt.hour < 12 ? 'AM' : 'PM';
+    return '$h:$m $amPm';
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasSlot = selectedSlot != null;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: ElevatedButton(
-        onPressed: hasSlot ? onBook : null,
-        child: const Text('Book Now'),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        border: Border(
+          top: BorderSide(
+            color: hasSlot
+                ? AppColors.primary.withValues(alpha: 0.2)
+                : AppColors.primary.withValues(alpha: 0.06),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Slot summary pill (only when a slot is picked)
+          if (hasSlot) ...[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${_kDaysFull[selectedSlot!.startTime.weekday - 1]}, '
+                    '${selectedSlot!.startTime.day} '
+                    '${_kMonths[selectedSlot!.startTime.month - 1]}',
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(Icons.schedule_rounded,
+                          size: 13, color: AppColors.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatTime(selectedSlot!.startTime),
+                        style: AppTypography.helper.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
+
+          // Book button
+          Expanded(
+            flex: hasSlot ? 1 : 2,
+            child: ElevatedButton(
+              onPressed: hasSlot ? onBook : null,
+              child: Text(
+                  hasSlot ? 'Book Session' : 'Select a Time'),
+            ),
+          ),
+        ],
       ),
     );
   }

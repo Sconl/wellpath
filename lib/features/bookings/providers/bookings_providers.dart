@@ -28,7 +28,9 @@ final trainerSlotsProvider =
       .orderBy('startTime')
       .limit(kMaxSlotsPerTrainer);
 
-  return query.snapshots().map((snap) {
+  // includeMetadataChanges: true ensures the local cache write (from the
+  // booking transaction) is reflected immediately before server confirmation.
+  return query.snapshots(includeMetadataChanges: true).map((snap) {
     // ignore: avoid_print
     print('[trainerSlotsProvider] docs: ${snap.docs.length}');
     return snap.docs.map(AvailabilitySlot.fromFirestore).toList();
@@ -49,9 +51,17 @@ final myBookingsProvider = StreamProvider<List<BookingModel>>((ref) {
       .where('userId', isEqualTo: uid)
       .orderBy('slotStartTime', descending: true)
       .limit(kMaxBookingHistory)
-      .snapshots()
+      // includeMetadataChanges: true is the key fix for realtime updates:
+      // Firestore writes are first committed to the local cache — without this
+      // flag, snapshots() only emits on server confirmation, causing a visible
+      // delay after booking. With it, the new booking card appears immediately.
+      .snapshots(includeMetadataChanges: true)
       .map((snap) =>
-          snap.docs.map(BookingModel.fromFirestore).toList());
+          snap.docs.map(BookingModel.fromFirestore).toList())
+      .handleError((error, stack) {
+        // ignore: avoid_print
+        print('[myBookingsProvider] ERROR: $error');
+      });
 });
 
 // ─────────────────────────────────────────────
