@@ -52,7 +52,7 @@ import 'app_theme.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Per-page toggle defaults ──────────────────────────────────────────────────
-const bool kDefaultShowParticles = true;
+const bool kDefaultShowParticles = false;
 const bool kDefaultShowGradient  = true;
 
 // ── Particle defaults ─────────────────────────────────────────────────────────
@@ -143,8 +143,8 @@ class AppCanvas extends StatefulWidget {
   const AppCanvas({
     super.key,
     required this.child,
-    this.type             = BackgroundType.meshParticle,
-    this.particleStyle    = ParticleStyle.drift,
+    this.type             = BackgroundType.constellation,
+    this.particleStyle    = ParticleStyle.rain,
     this.gradientStyle    = GradientStyle.pulse,
     this.particleCount    = kDefaultParticleCount,
     this.showParticles    = kDefaultShowParticles,
