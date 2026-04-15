@@ -3,34 +3,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // CHANGELOG
 // ─────────────────────────────────────────────────────────────────────────────
-//   v1.0.0 — Initial. Reusable navigation shell with three modes:
+//   v1.0.0 — Initial. Reusable navigation shell with three modes.
+//   v3.2.0 — [NavItem] + nav lists moved to nav_items.dart (single source of
+//            truth). Import updated; all other logic unchanged.
 //
 //   ┌─ Platform + width resolution ──────────────────────────────────────────┐
-//   │  Native Android / iOS    → _NavMode.bottom  (always, any screen size)  │
-//   │  Web / Desktop ≥1100px   → _NavMode.sidebar (collapsible, animated)    │
-//   │  Web / Desktop < 1100px  → _NavMode.drawer  (hamburger → drawer)       │
+//   │  Native Android / iOS    → NavMode.bottom  (always, any screen size)   │
+//   │  Web / Desktop ≥1100px   → NavMode.sidebar (collapsible, animated)     │
+//   │  Web / Desktop < 1100px  → NavMode.drawer  (hamburger → drawer)        │
 //   └────────────────────────────────────────────────────────────────────────┘
-//
-//   AppNavShell   — wraps any screen body; provides AppNavScope to descendants
-//   AppNavScope   — InheritedWidget; exposes navMode + openDrawer callback
-//   NavItem       — immutable nav item descriptor
-//   kUserNavItems / kTrainerNavItems — canonical nav sets
-//
-// USAGE:
-//   class MyScreen extends StatelessWidget {
-//     Widget build(BuildContext context) {
-//       return AppNavShell(
-//         currentRoute: '/home',
-//         isTrainerView: false,
-//         child: MyScreenBody(),
-//       );
-//     }
-//   }
-//
-//   In any descendant, to read mode or open drawer:
-//     final nav = AppNavScope.of(context);
-//     nav.openDrawer();
-//     if (nav.navMode == _NavMode.drawer) { ... }
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform;
@@ -39,23 +20,20 @@ import 'package:go_router/go_router.dart';
 
 import '../style/app_theme.dart';
 import '../style/app_branding.dart';
-import 'app_nav_items.dart';
+
+// ← single source of truth for NavItem, kUserNavItems, kTrainerNavItems
+import 'nav_items.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Breakpoints
-const double _kSidebarBreak = 1100.0; // web: sidebar above this
-
-// Sidebar geometry
-const double _kSidebarExpanded = 232.0;
+const double _kSidebarBreak     = 1100.0;
+const double _kSidebarExpanded  = 232.0;
 const double _kSidebarCollapsed = 72.0;
-const Duration _kSidebarAnim = Duration(milliseconds: 240);
-
-// Nav item touch target
-const double _kNavItemH = 48.0;
-const double _kNavItemRadius = 12.0;
+const Duration _kSidebarAnim    = Duration(milliseconds: 240);
+const double _kNavItemH         = 48.0;
+const double _kNavItemRadius    = 12.0;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NavMode
@@ -64,21 +42,18 @@ const double _kNavItemRadius = 12.0;
 enum NavMode { sidebar, drawer, bottom }
 
 NavMode _resolveNavMode(BuildContext context) {
-  // Native Android / iOS: always bottom tab bar regardless of screen size.
   if (!kIsWeb) {
     if (defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS) {
       return NavMode.bottom;
     }
   }
-  // Web + native desktop: use screen width.
   final w = MediaQuery.of(context).size.width;
   return w >= _kSidebarBreak ? NavMode.sidebar : NavMode.drawer;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AppNavScope — InheritedWidget
-// Provides navMode and openDrawer to any descendant without prop-drilling.
+// AppNavScope
 // ─────────────────────────────────────────────────────────────────────────────
 
 class AppNavScope extends InheritedWidget {
@@ -98,8 +73,7 @@ class AppNavScope extends InheritedWidget {
 
   static AppNavScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppNavScope>();
-    assert(scope != null,
-        'No AppNavScope found — wrap your screen with AppNavShell.');
+    assert(scope != null, 'No AppNavScope found — wrap your screen with AppNavShell.');
     return scope!;
   }
 
@@ -116,8 +90,6 @@ class AppNavShell extends StatefulWidget {
   final String currentRoute;
   final bool isTrainerView;
   final Widget child;
-
-  /// Display name + optional avatar URL for sidebar/drawer header.
   final String displayName;
   final String? photoUrl;
 
@@ -126,7 +98,7 @@ class AppNavShell extends StatefulWidget {
     required this.currentRoute,
     required this.child,
     this.isTrainerView = false,
-    this.displayName = '',
+    this.displayName   = '',
     this.photoUrl,
   });
 
@@ -136,7 +108,7 @@ class AppNavShell extends StatefulWidget {
 
 class _AppNavShellState extends State<AppNavShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
-  bool _sidebarExpanded = true; // starts expanded; user can collapse
+  bool _sidebarExpanded = true;
 
   List<NavItem> get _items =>
       widget.isTrainerView ? kTrainerNavItems : kUserNavItems;
@@ -145,7 +117,6 @@ class _AppNavShellState extends State<AppNavShell> {
 
   void _navigate(BuildContext ctx, String route) {
     if (route != widget.currentRoute) ctx.go(route);
-    // Close drawer if open
     if (_scaffoldKey.currentState?.isDrawerOpen == true) {
       Navigator.of(ctx).pop();
     }
@@ -154,41 +125,37 @@ class _AppNavShellState extends State<AppNavShell> {
   @override
   Widget build(BuildContext context) {
     final mode = _resolveNavMode(context);
-
     return AppNavScope(
-      navMode: mode,
-      openDrawer: _openDrawer,
+      navMode:         mode,
+      openDrawer:      _openDrawer,
       sidebarExpanded: _sidebarExpanded,
-      toggleSidebar: () => setState(() => _sidebarExpanded = !_sidebarExpanded),
+      toggleSidebar: () =>
+          setState(() => _sidebarExpanded = !_sidebarExpanded),
       child: _buildScaffold(context, mode),
     );
   }
 
   Widget _buildScaffold(BuildContext context, NavMode mode) {
     switch (mode) {
-      // ── Sidebar ─────────────────────────────────────────────────────────────
       case NavMode.sidebar:
         return Scaffold(
           key: _scaffoldKey,
           backgroundColor: AppColors.background,
-          body: Row(
-            children: [
-              _SidebarNav(
-                items: _items,
-                currentRoute: widget.currentRoute,
-                expanded: _sidebarExpanded,
-                displayName: widget.displayName,
-                photoUrl: widget.photoUrl,
-                onToggle: () =>
-                    setState(() => _sidebarExpanded = !_sidebarExpanded),
-                onTap: (route) => _navigate(context, route),
-              ),
-              Expanded(child: widget.child),
-            ],
-          ),
+          body: Row(children: [
+            _SidebarNav(
+              items:       _items,
+              currentRoute: widget.currentRoute,
+              expanded:    _sidebarExpanded,
+              displayName: widget.displayName,
+              photoUrl:    widget.photoUrl,
+              onToggle: () =>
+                  setState(() => _sidebarExpanded = !_sidebarExpanded),
+              onTap: (r) => _navigate(context, r),
+            ),
+            Expanded(child: widget.child),
+          ]),
         );
 
-      // ── Drawer (hamburger) ──────────────────────────────────────────────────
       case NavMode.drawer:
         return Scaffold(
           key: _scaffoldKey,
@@ -197,26 +164,25 @@ class _AppNavShellState extends State<AppNavShell> {
             backgroundColor: AppColors.surface,
             width: _kSidebarExpanded,
             child: _DrawerContent(
-              items: _items,
+              items:        _items,
               currentRoute: widget.currentRoute,
-              displayName: widget.displayName,
-              photoUrl: widget.photoUrl,
-              onTap: (route) => _navigate(context, route),
+              displayName:  widget.displayName,
+              photoUrl:     widget.photoUrl,
+              onTap:        (r) => _navigate(context, r),
             ),
           ),
           body: widget.child,
         );
 
-      // ── Bottom nav (mobile) ─────────────────────────────────────────────────
       case NavMode.bottom:
         return Scaffold(
           key: _scaffoldKey,
           backgroundColor: AppColors.background,
           body: widget.child,
           bottomNavigationBar: _BottomNavBar(
-            items: _items,
+            items:        _items,
             currentRoute: widget.currentRoute,
-            onTap: (route) => _navigate(context, route),
+            onTap:        (r) => _navigate(context, r),
           ),
         );
     }
@@ -224,7 +190,7 @@ class _AppNavShellState extends State<AppNavShell> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _SidebarNav — collapsible sidebar for web desktop
+// _SidebarNav
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SidebarNav extends StatelessWidget {
@@ -260,7 +226,6 @@ class _SidebarNav extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Logo + toggle ──────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 8, 20),
               child: Row(
@@ -268,54 +233,34 @@ class _SidebarNav extends StatelessWidget {
                     ? MainAxisAlignment.spaceBetween
                     : MainAxisAlignment.center,
                 children: [
-                  if (expanded) ...[
-                    BrandLogo(fallbackSize: LogoSize.sm),
-                  ] else ...[
-                    _LogoMark(),
-                  ],
+                  if (expanded) BrandLogo(fallbackSize: LogoSize.sm)
+                  else _LogoMark(),
                   if (expanded)
                     _CollapseButton(onToggle: onToggle, expanded: expanded),
                 ],
               ),
             ),
-
             if (!expanded) ...[
-              // Show collapse-toggle button below logo mark when collapsed
               Center(
-                child: _CollapseButton(onToggle: onToggle, expanded: expanded),
-              ),
+                child: _CollapseButton(onToggle: onToggle, expanded: expanded)),
               const SizedBox(height: 8),
             ],
-
             const _SidebarDivider(),
-
             const SizedBox(height: 8),
-
-            // ── Nav items ──────────────────────────────────────────────────
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                children: items.map((item) {
-                  final active = item.route == currentRoute;
-                  return _SidebarItem(
-                    item: item,
-                    active: active,
-                    expanded: expanded,
-                    onTap: () => onTap(item.route),
-                  );
-                }).toList(),
+                children: items.map((item) => _SidebarItem(
+                  item:     item,
+                  active:   item.route == currentRoute,
+                  expanded: expanded,
+                  onTap:    () => onTap(item.route),
+                )).toList(),
               ),
             ),
-
             const _SidebarDivider(),
-
-            // ── User avatar at bottom ──────────────────────────────────────
             _SidebarUserTile(
-              displayName: displayName,
-              photoUrl: photoUrl,
-              expanded: expanded,
-            ),
-
+                displayName: displayName, photoUrl: photoUrl, expanded: expanded),
             const SizedBox(height: 12),
           ],
         ),
@@ -328,17 +273,14 @@ class _LogoMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 36,
-      height: 36,
+      width: 36, height: 36,
       decoration: BoxDecoration(
-        gradient: AppGradients.button,
+        gradient:     AppGradients.button,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Center(
-        child: Text(
-          BrandCopy.wordBold[0],
-          style: AppTypography.h4.copyWith(color: AppColors.onPrimary),
-        ),
+        child: Text(BrandCopy.wordBold[0],
+            style: AppTypography.h4.copyWith(color: AppColors.onPrimary)),
       ),
     );
   }
@@ -356,17 +298,15 @@ class _CollapseButton extends StatelessWidget {
       child: GestureDetector(
         onTap: onToggle,
         child: Container(
-          width: 30,
-          height: 30,
+          width: 30, height: 30,
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color:        AppColors.surface,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.border),
+            border:       Border.all(color: AppColors.border),
           ),
           child: Icon(
             expanded ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
-            size: 18,
-            color: AppColors.textMuted,
+            size: 18, color: AppColors.textMuted,
           ),
         ),
       ),
@@ -379,12 +319,9 @@ class _SidebarItem extends StatefulWidget {
   final bool active;
   final bool expanded;
   final VoidCallback onTap;
-
   const _SidebarItem({
-    required this.item,
-    required this.active,
-    required this.expanded,
-    required this.onTap,
+    required this.item, required this.active,
+    required this.expanded, required this.onTap,
   });
 
   @override
@@ -405,81 +342,61 @@ class _SidebarItemState extends State<_SidebarItem> {
     final iconC = active ? AppColors.primary : AppColors.textMuted;
     final textC = active ? AppColors.primary : AppColors.textSecondary;
 
-    final child = MouseRegion(
-      cursor: SystemMouseCursors.click,
+    final tile = MouseRegion(
+      cursor:  SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
+      onExit:  (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: AppDurations.fast,
-          height: _kNavItemH,
+          height:  _kNavItemH,
           padding: EdgeInsets.symmetric(
-            horizontal: widget.expanded ? 12 : 0,
-          ),
+              horizontal: widget.expanded ? 12 : 0),
           decoration: BoxDecoration(
-            color: bg,
+            color:        bg,
             borderRadius: BorderRadius.circular(_kNavItemRadius),
-            border: active
+            border:       active
                 ? Border.all(color: AppColors.primary.withValues(alpha: 0.25))
                 : null,
           ),
           child: widget.expanded
-              ? Row(
-                  children: [
-                    Icon(
-                      active ? widget.item.activeIcon : widget.item.icon,
-                      color: iconC,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        widget.item.label,
+              ? Row(children: [
+                  Icon(active ? widget.item.activeIcon : widget.item.icon,
+                      color: iconC, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(widget.item.label,
                         style: AppTypography.h5.copyWith(
-                          color: textC,
-                          fontWeight:
-                              active ? FontWeight.w600 : FontWeight.w400,
-                        ),
-                      ),
+                          color:      textC,
+                          fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                        )),
+                  ),
+                  if (active)
+                    Container(
+                      width: 5, height: 5,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary, shape: BoxShape.circle),
                     ),
-                    if (active)
-                      Container(
-                        width: 5,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                  ],
-                )
+                ])
               : Center(
                   child: Icon(
                     active ? widget.item.activeIcon : widget.item.icon,
-                    color: iconC,
-                    size: 22,
+                    color: iconC, size: 22,
                   ),
                 ),
         ),
       ),
     );
 
-    // Show tooltip only when collapsed — the label IS the tooltip content
-    if (!widget.expanded) {
-      return Tooltip(
-        message: widget.item.label,
-        preferBelow: false,
-        child: child,
-      );
-    }
-    return child;
+    return widget.expanded
+        ? tile
+        : Tooltip(message: widget.item.label, preferBelow: false, child: tile);
   }
 }
 
 class _SidebarDivider extends StatelessWidget {
   const _SidebarDivider();
-
   @override
   Widget build(BuildContext context) =>
       Divider(height: 1, thickness: 1, color: AppColors.border);
@@ -489,38 +406,25 @@ class _SidebarUserTile extends StatelessWidget {
   final String displayName;
   final String? photoUrl;
   final bool expanded;
-
   const _SidebarUserTile({
-    required this.displayName,
-    required this.expanded,
-    this.photoUrl,
-  });
+    required this.displayName, required this.expanded, this.photoUrl});
 
   @override
   Widget build(BuildContext context) {
     final initial =
         displayName.isNotEmpty ? displayName.trim()[0].toUpperCase() : '?';
-
     final avatar = Container(
-      width: 36,
-      height: 36,
+      width: 36, height: 36,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.primary.withValues(alpha: 0.15),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.35),
-        ),
+        color:  AppColors.primary.withValues(alpha: 0.15),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
       ),
       child: photoUrl != null && photoUrl!.isNotEmpty
-          ? ClipOval(
-              child: Image.network(
-              photoUrl!,
-              fit: BoxFit.cover,
+          ? ClipOval(child: Image.network(photoUrl!, fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => Center(
                 child: Text(initial,
-                    style: AppTypography.h5.copyWith(color: AppColors.primary)),
-              ),
-            ))
+                    style: AppTypography.h5.copyWith(color: AppColors.primary)))))
           : Center(
               child: Text(initial,
                   style: AppTypography.h5.copyWith(color: AppColors.primary))),
@@ -528,32 +432,22 @@ class _SidebarUserTile extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: expanded ? 16 : 0,
-        vertical: 8,
-      ),
+          horizontal: expanded ? 16 : 0, vertical: 8),
       child: expanded
           ? Row(children: [
               avatar,
               const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      displayName.trim().split(' ').first,
-                      style: AppTypography.h5.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      'Member',
-                      style: AppTypography.caption,
-                    ),
-                  ],
-                ),
-              ),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayName.trim().split(' ').first,
+                    style: AppTypography.h5.copyWith(color: AppColors.textPrimary),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                  ),
+                  Text('Member', style: AppTypography.caption),
+                ],
+              )),
             ])
           : Center(child: avatar),
     );
@@ -561,7 +455,7 @@ class _SidebarUserTile extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _DrawerContent — used inside Scaffold.drawer for the hamburger mode
+// _DrawerContent
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _DrawerContent extends StatelessWidget {
@@ -570,67 +464,43 @@ class _DrawerContent extends StatelessWidget {
   final String displayName;
   final String? photoUrl;
   final void Function(String route) onTap;
-
   const _DrawerContent({
-    required this.items,
-    required this.currentRoute,
-    required this.displayName,
-    required this.onTap,
-    this.photoUrl,
+    required this.items, required this.currentRoute,
+    required this.displayName, required this.onTap, this.photoUrl,
   });
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Header ────────────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-            child: Row(
-              children: [
-                BrandLogo(fallbackSize: LogoSize.sm),
-                const Spacer(),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: Icon(Icons.close, color: AppColors.textMuted, size: 20),
-                ),
-              ],
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+          child: Row(children: [
+            BrandLogo(fallbackSize: LogoSize.sm),
+            const Spacer(),
+            IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: Icon(Icons.close, color: AppColors.textMuted, size: 20),
             ),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        Divider(color: AppColors.border, height: 1),
+        const SizedBox(height: 12),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            children: items.map((item) => _DrawerItem(
+              item:   item,
+              active: item.route == currentRoute,
+              onTap:  () => onTap(item.route),
+            )).toList(),
           ),
-
-          const SizedBox(height: 12),
-          Divider(color: AppColors.border, height: 1),
-          const SizedBox(height: 12),
-
-          // ── Nav items ──────────────────────────────────────────────────────
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              children: items.map((item) {
-                final active = item.route == currentRoute;
-                return _DrawerItem(
-                  item: item,
-                  active: active,
-                  onTap: () => onTap(item.route),
-                );
-              }).toList(),
-            ),
-          ),
-
-          Divider(color: AppColors.border, height: 1),
-
-          // ── User footer ────────────────────────────────────────────────────
-          _SidebarUserTile(
-            displayName: displayName,
-            photoUrl: photoUrl,
-            expanded: true,
-          ),
-
-          const SizedBox(height: 12),
-        ],
-      ),
+        ),
+        Divider(color: AppColors.border, height: 1),
+        _SidebarUserTile(displayName: displayName, photoUrl: photoUrl, expanded: true),
+        const SizedBox(height: 12),
+      ]),
     );
   }
 }
@@ -639,55 +509,39 @@ class _DrawerItem extends StatelessWidget {
   final NavItem item;
   final bool active;
   final VoidCallback onTap;
-
-  const _DrawerItem({
-    required this.item,
-    required this.active,
-    required this.onTap,
-  });
+  const _DrawerItem({required this.item, required this.active, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final bg =
-        active ? AppColors.primary.withValues(alpha: 0.12) : Colors.transparent;
+    final bg    = active ? AppColors.primary.withValues(alpha: 0.12) : Colors.transparent;
     final color = active ? AppColors.primary : AppColors.textSecondary;
-
     return GestureDetector(
       onTap: onTap,
       child: Container(
         height: _kNavItemH,
-        margin: const EdgeInsets.only(bottom: 4),
+        margin:  const EdgeInsets.only(bottom: 4),
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: bg,
+          color:        bg,
           borderRadius: BorderRadius.circular(_kNavItemRadius),
-          border: active
+          border:       active
               ? Border.all(color: AppColors.primary.withValues(alpha: 0.2))
               : null,
         ),
         child: Row(children: [
-          Icon(
-            active ? item.activeIcon : item.icon,
-            color: color,
-            size: 20,
-          ),
+          Icon(active ? item.activeIcon : item.icon, color: color, size: 20),
           const SizedBox(width: 12),
-          Text(
-            item.label,
-            style: AppTypography.h5.copyWith(
-              color: color,
-              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-            ),
-          ),
+          Text(item.label,
+              style: AppTypography.h5.copyWith(
+                color: color,
+                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+              )),
           if (active) ...[
             const Spacer(),
             Container(
-              width: 5,
-              height: 5,
+              width: 5, height: 5,
               decoration: BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-              ),
+                  color: AppColors.primary, shape: BoxShape.circle),
             ),
           ],
         ]),
@@ -697,25 +551,21 @@ class _DrawerItem extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _BottomNavBar — native mobile (Android / iOS)
+// _BottomNavBar
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _BottomNavBar extends StatelessWidget {
   final List<NavItem> items;
   final String currentRoute;
   final void Function(String route) onTap;
-
   const _BottomNavBar({
-    required this.items,
-    required this.currentRoute,
-    required this.onTap,
-  });
+    required this.items, required this.currentRoute, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color:  AppColors.surface,
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: SafeArea(
@@ -724,39 +574,29 @@ class _BottomNavBar extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: items.map((item) {
             final active = item.route == currentRoute;
-            final color = active ? AppColors.primary : AppColors.textMuted;
-
+            final color  = active ? AppColors.primary : AppColors.textMuted;
             return GestureDetector(
               onTap: () => onTap(item.route),
               behavior: HitTestBehavior.opaque,
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 10,
-                  horizontal: 12,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedSwitcher(
-                      duration: AppDurations.fast,
-                      child: Icon(
-                        active ? item.activeIcon : item.icon,
-                        key: ValueKey('$active-${item.route}'),
-                        color: color,
-                        size: 22,
-                      ),
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  AnimatedSwitcher(
+                    duration: AppDurations.fast,
+                    child: Icon(
+                      active ? item.activeIcon : item.icon,
+                      key:   ValueKey('$active-${item.route}'),
+                      color: color, size: 22,
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      item.label,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(item.label,
                       style: AppTypography.caption.copyWith(
-                        color: color,
+                        color:      color,
                         fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ],
-                ),
+                        fontSize:   10,
+                      )),
+                ]),
               ),
             );
           }).toList(),
@@ -767,7 +607,7 @@ class _BottomNavBar extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HamburgerButton — exposed for use in page headers when mode == drawer
+// HamburgerButton — for page headers when NavMode == drawer
 // ─────────────────────────────────────────────────────────────────────────────
 
 class HamburgerButton extends StatelessWidget {
@@ -777,19 +617,17 @@ class HamburgerButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final scope = AppNavScope.of(context);
     if (scope.navMode != NavMode.drawer) return const SizedBox.shrink();
-
     return GestureDetector(
       onTap: scope.openDrawer,
       child: Container(
-        width: 38,
-        height: 38,
+        width: 38, height: 38,
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color:        AppColors.surface,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.border),
+          border:       Border.all(color: AppColors.border),
         ),
-        child:
-            Icon(Icons.menu_rounded, size: 18, color: AppColors.textSecondary),
+        child: Icon(Icons.menu_rounded,
+            size: 18, color: AppColors.textSecondary),
       ),
     );
   }

@@ -22,6 +22,13 @@
 //            • /features → FeaturesScreen
 //            • /pricing  → PricingScreen
 //            All three marketing pages added to _kPublicRoutes.
+//   v3.3.0 — Admin routes added:
+//            • /admin
+//            • /admin/content
+//            • /admin/brand
+//            • /admin/features
+//            • /admin/preview
+//            Each route is wrapped in QAdminShell.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/material.dart';
@@ -29,26 +36,35 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 // ── Public / marketing screens ────────────────────────────────────────────────
-import '../../landing_page.dart';
+import '../../spaces/space_site/screen_home/screen_home_main.dart';
+import '../../spaces/space_site/wellpath_config.dart';
 import '../../dev_landing_page.dart';
-import '../../features/site/about/about_screen.dart';
-import '../../features/site/features_page/features_screen.dart';
-import '../../features/site/pricing/pricing_screen.dart';
+import '../../spaces/space_site/screen_about/about_screen.dart';
+import '../../spaces/space_site/screen_features/features_screen.dart';
+import '../../spaces/space_site/screen_pricing/pricing_screen.dart';
 
 // ── Auth screens ──────────────────────────────────────────────────────────────
-import '../../features/auth/presentation/login_screen.dart';
-import '../../features/auth/presentation/signup_screen.dart';
-import '../../features/auth/providers/auth_providers.dart';
+import '../../spaces/auth/presentation/login_screen.dart';
+import '../../spaces/auth/presentation/signup_screen.dart';
+import '../../spaces/auth/providers/auth_providers.dart';
 
 // ── Authenticated screens ─────────────────────────────────────────────────────
-import '../../features/home/home_screen.dart';
-import '../../features/discover/presentation/trainers_screen.dart';
-import '../../features/discover/presentation/trainer_profile_screen.dart';
-import '../../features/gyms/presentation/gyms_screen.dart';
-import '../../features/bookings/presentation/bookings_screen.dart';
-import '../../features/wellness/presentation/wellness_screen.dart';
-import '../../features/profile/presentation/profile_screen.dart';
-import '../../features/notifications/notification_service.dart';
+import '../../spaces/dashboard/home_screen.dart';
+import '../../spaces/discover/presentation/trainers_screen.dart';
+import '../../spaces/discover/presentation/trainer_profile_screen.dart';
+import '../../spaces/gyms/presentation/gyms_screen.dart';
+import '../../spaces/bookings/presentation/bookings_screen.dart';
+import '../../spaces/wellness/presentation/wellness_screen.dart';
+import '../../spaces/profile/presentation/profile_screen.dart';
+import '../../spaces/notifications/notification_service.dart';
+
+// ── Admin space ───────────────────────────────────────────────────────────────
+import '../../core/admin/q_admin_shell.dart';
+import '../../core/admin/screens/screen_admin_overview.dart';
+import '../../core/admin/screens/screen_admin_content.dart';
+import '../../core/admin/screens/screen_admin_brand.dart';
+import '../../core/admin/screens/screen_admin_features.dart';
+import '../../core/admin/screens/screen_admin_preview.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG
@@ -73,8 +89,8 @@ const _kPublicRoutes = {
 
 class _RouterNotifier extends ChangeNotifier {
   _RouterNotifier(Ref ref) {
-    ref.listen(authStateProvider,      (_, __) => notifyListeners());
-    ref.listen(firestoreUserProvider,  (_, __) => notifyListeners());
+    ref.listen(authStateProvider, (_, __) => notifyListeners());
+    ref.listen(firestoreUserProvider, (_, __) => notifyListeners());
   }
 }
 
@@ -87,16 +103,15 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     debugLogDiagnostics: false,
-    initialLocation:     '/landing',
-    refreshListenable:   notifier,
-
+    initialLocation: '/landing',
+    refreshListenable: notifier,
     redirect: (context, state) {
       final loc = state.uri.path;
 
       final authAsync = ref.read(authStateProvider);
       if (authAsync.isLoading) return null;
 
-      final isLoggedIn    = authAsync.value != null;
+      final isLoggedIn = authAsync.value != null;
       final isPublicRoute = _kPublicRoutes.contains(loc);
 
       // Not logged in: public routes pass through, protected routes → /login.
@@ -118,64 +133,62 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       return null;
     },
-
     routes: [
-
       // ── ROOT ─────────────────────────────────────────────────────────────
       GoRoute(path: '/', redirect: (_, __) => '/landing'),
 
       // ── MARKETING — PUBLIC ────────────────────────────────────────────────
 
       GoRoute(
-        path:    '/landing',
-        name:    'landing',
-        builder: (_, __) => const LandingPage(),
+        path: '/landing',
+        name: 'landing',
+        builder: (ctx, state) => const SiteLandingPage(),
       ),
 
       GoRoute(
-        path:    '/about',
-        name:    'about',
+        path: '/about',
+        name: 'about',
         builder: (_, __) => const AboutScreen(),
       ),
 
       GoRoute(
-        path:    '/features',
-        name:    'features',
+        path: '/features',
+        name: 'features',
         builder: (_, __) => const FeaturesScreen(),
       ),
 
       GoRoute(
-        path:    '/pricing',
-        name:    'pricing',
+        path: '/pricing',
+        name: 'pricing',
         builder: (_, __) => const PricingScreen(),
       ),
 
       // Developer roadmap page (accessible from production landing footer)
       GoRoute(
-        path:    '/dev',
-        name:    'devLanding',
+        path: '/dev',
+        name: 'devLanding',
         builder: (_, __) => const DevLandingPage(),
       ),
 
       // ── AUTH ──────────────────────────────────────────────────────────────
 
       GoRoute(
-        path:    '/login',
-        name:    'login',
+        path: '/login',
+        name: 'login',
         builder: (_, __) => const LoginScreen(),
       ),
 
       GoRoute(
-        path:    '/signup',
-        name:    'signup',
+        path: '/signup',
+        name: 'signup',
         builder: (_, __) => const SignupScreen(),
       ),
 
       // ── HOME ─────────────────────────────────────────────────────────────
 
       GoRoute(
-        path:    '/home',
-        name:    'home',
+        path: '/home',
+        name: 'home',
         builder: (_, __) => NotificationBannerHost(child: const HomeScreen()),
       ),
 
@@ -184,16 +197,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/discover', redirect: (_, __) => '/trainers'),
 
       GoRoute(
-        path:    '/trainers',
-        name:    'trainers',
+        path: '/trainers',
+        name: 'trainers',
         builder: (_, __) => NotificationBannerHost(child: const TrainersScreen()),
       ),
 
       // ── GYMS ─────────────────────────────────────────────────────────────
 
       GoRoute(
-        path:    '/gyms',
-        name:    'gyms',
+        path: '/gyms',
+        name: 'gyms',
         builder: (_, __) => NotificationBannerHost(child: const GymsScreen()),
       ),
 
@@ -201,8 +214,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Canonical source: discover/presentation/trainer_profile_screen.dart
 
       GoRoute(
-        path:    '/trainer/:id',
-        name:    'trainerProfile',
+        path: '/trainer/:id',
+        name: 'trainerProfile',
         builder: (_, state) => NotificationBannerHost(
           child: TrainerProfileScreen(
             trainerId: state.pathParameters['id'] ?? '',
@@ -213,32 +226,60 @@ final routerProvider = Provider<GoRouter>((ref) {
       // ── BOOKINGS ──────────────────────────────────────────────────────────
 
       GoRoute(
-        path:    '/bookings',
-        name:    'bookings',
+        path: '/bookings',
+        name: 'bookings',
         builder: (_, __) => NotificationBannerHost(child: const BookingsScreen()),
       ),
 
       // ── WELLNESS ─────────────────────────────────────────────────────────
 
       GoRoute(
-        path:    '/wellness',
-        name:    'wellness',
+        path: '/wellness',
+        name: 'wellness',
         builder: (_, __) => NotificationBannerHost(child: const WellnessScreen()),
       ),
 
       // ── PROFILE + SETTINGS ────────────────────────────────────────────────
 
       GoRoute(
-        path:    '/profile',
-        name:    'profile',
+        path: '/profile',
+        name: 'profile',
         builder: (_, __) => NotificationBannerHost(child: const ProfileScreen()),
+      ),
+
+      // ── ADMIN ─────────────────────────────────────────────────────────────
+      // Wrapped in QAdminShell as requested.
+      GoRoute(
+        path: '/admin',
+        name: 'adminOverview',
+        builder: (_, __) => QAdminShell(child: ScreenAdminOverview()),
+      ),
+      GoRoute(
+        path: '/admin/content',
+        name: 'adminContent',
+        builder: (_, __) => QAdminShell(child: ScreenAdminContent()),
+      ),
+      GoRoute(
+        path: '/admin/brand',
+        name: 'adminBrand',
+        builder: (_, __) => QAdminShell(child: ScreenAdminBrand()),
+      ),
+      GoRoute(
+        path: '/admin/features',
+        name: 'adminFeatures',
+        builder: (_, __) => QAdminShell(child: ScreenAdminFeatures()),
+      ),
+      GoRoute(
+        path: '/admin/preview',
+        name: 'adminPreview',
+        builder: (_, __) => QAdminShell(child: ScreenAdminPreview()),
       ),
 
       // ── TRAINER DASHBOARD ─────────────────────────────────────────────────
 
       GoRoute(
-        path:    '/trainer-dashboard',
-        name:    'trainerDashboard',
+        path: '/trainer-dashboard',
+        name: 'trainerDashboard',
         builder: (_, __) => NotificationBannerHost(
           child: const HomeScreen(isTrainerView: true),
         ),
@@ -248,29 +289,32 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Placeholder — AvailabilityScreen ships Week 5.
 
       GoRoute(
-        path:    '/availability',
-        name:    'availability',
+        path: '/availability',
+        name: 'availability',
         builder: (_, __) => NotificationBannerHost(
           child: const _PlaceholderScreen(
             title: 'Manage Availability',
-            icon:  Icons.event_available_outlined,
-            week:  'Week 5',
+            icon: Icons.event_available_outlined,
+            week: 'Week 5',
           ),
         ),
       ),
     ],
-
     errorBuilder: (_, state) => Scaffold(
       backgroundColor: const Color(0xFF020E08),
       body: Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.link_off_outlined, color: Colors.white24, size: 48),
           const SizedBox(height: 16),
-          const Text('Page not found',
-              style: TextStyle(color: Colors.white70, fontSize: 16)),
+          const Text(
+            'Page not found',
+            style: TextStyle(color: Colors.white70, fontSize: 16),
+          ),
           const SizedBox(height: 8),
-          Text(state.uri.path,
-              style: const TextStyle(color: Colors.white30, fontSize: 12)),
+          Text(
+            state.uri.path,
+            style: const TextStyle(color: Colors.white30, fontSize: 12),
+          ),
         ]),
       ),
     ),
@@ -282,28 +326,36 @@ final routerProvider = Provider<GoRouter>((ref) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _PlaceholderScreen extends StatelessWidget {
-  final String   title;
+  final String title;
   final IconData icon;
-  final String   week;
-  const _PlaceholderScreen({required this.title, required this.icon, required this.week});
+  final String week;
+  const _PlaceholderScreen({
+    required this.title,
+    required this.icon,
+    required this.week,
+  });
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF020E08),
-    appBar: AppBar(
-      backgroundColor: Colors.transparent,
-      elevation:       0,
-      title:       Text(title, style: const TextStyle(color: Colors.white, fontSize: 16)),
-      iconTheme:   const IconThemeData(color: Colors.white54),
-    ),
-    body: Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, color: Colors.white12, size: 56),
-        const SizedBox(height: 20),
-        Text(title,    style: const TextStyle(color: Colors.white54, fontSize: 18)),
-        const SizedBox(height: 8),
-        Text('Coming $week', style: const TextStyle(color: Colors.white24, fontSize: 12)),
-      ]),
-    ),
-  );
+        backgroundColor: const Color(0xFF020E08),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: Text(
+            title,
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          ),
+          iconTheme: const IconThemeData(color: Colors.white54),
+        ),
+        body: Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, color: Colors.white12, size: 56),
+            const SizedBox(height: 20),
+            Text(title, style: const TextStyle(color: Colors.white54, fontSize: 18)),
+            const SizedBox(height: 8),
+            Text('Coming $week',
+                style: const TextStyle(color: Colors.white24, fontSize: 12)),
+          ]),
+        ),
+      );
 }

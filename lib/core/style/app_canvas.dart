@@ -1,46 +1,16 @@
 // lib/core/style/app_canvas.dart
-
+//
 // ─────────────────────────────────────────────────────────────────────────────
 // CHANGELOG
 // ─────────────────────────────────────────────────────────────────────────────
-//   • Initial rewrite — wired to theme.dart, all colors from AppColors — Sconl Peter
-//   • Replaced hardcoded Color literals with AppColors throughout
-//   • Added BackgroundType enum — 6 background modes (2 active, 4 placeholder)
-//   • Added ParticleStyle enum — 5 particle behaviours
-//   • Added GradientStyle enum — 4 gradient animation modes
-//   • Config block added at top per codespace Rule 7
-//   • Added showParticles and showGradient boolean toggles for per-page control
-//   • Confirmed compatible with app_branding → app_theme dependency chain.
-//     This file imports only app_theme.dart — AppColors and AppGradients
-//     resolve correctly because app_theme.dart reads BrandColors upstream.
-//   • File renamed: app_background.dart → app_canvas.dart
-//   • Class renamed: AppBackground → AppCanvas (matches file name)
-//   • File path updated: lib/core/theme/ → lib/core/style/
+//   v2.1 — Added showDepthMesh parameter.
+//          When true, renders 4 subtle radial-gradient zones that create
+//          perceived depth — a near highlight (top), mid-ground ambient
+//          (centre-left), and far-field tint (bottom-right). These zones
+//          make parallax translation feel 3-D rather than flat.
+//          All colors derived from AppColors/AppGradients — no hardcoded values.
+//          meshIntensity controls overall opacity of depth zones (default 1.0).
 // ─────────────────────────────────────────────────────────────────────────────
-
-// HOW TO USE:
-//
-//   Simplest:
-//     AppCanvas(child: YourScreen())
-//
-//   Full options:
-//     AppCanvas(
-//       type:          BackgroundType.meshParticle,
-//       particleStyle: ParticleStyle.drift,
-//       gradientStyle: GradientStyle.pulse,
-//       child:         YourScreen(),
-//     )
-//
-//   Per-page motion toggles:
-//     AppCanvas(showParticles: false, child: ...)        // gradient only
-//     AppCanvas(showGradient: false, child: ...)         // solid base + particles
-//     AppCanvas(showParticles: false, showGradient: false, child: ...) // plain branded bg
-//
-//   Placeholder types (branded base + debug label):
-//     AppCanvas(type: BackgroundType.aurora,     child: ...)
-//     AppCanvas(type: BackgroundType.noise,      child: ...)
-//     AppCanvas(type: BackgroundType.topography, child: ...)
-//     AppCanvas(type: BackgroundType.grid,       child: ...)
 
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -51,30 +21,29 @@ import 'app_theme.dart';
 // CONFIG BLOCK
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ── Per-page toggle defaults ──────────────────────────────────────────────────
 const bool kDefaultShowParticles = false;
 const bool kDefaultShowGradient  = true;
 
-// ── Particle defaults ─────────────────────────────────────────────────────────
 const int    kDefaultParticleCount = 40;
 const double kParticleRadiusMin    = 2.0;
 const double kParticleRadiusMax    = 8.0;
-
-// ~18% opacity — subtle enough to feel like depth without distracting from content.
-const int kParticleAlpha = 46;
+const int    kParticleAlpha        = 46;
 
 const double kOrbitRadius              = 30.0;
 const int    kConstellationConnections = 3;
 
-// ── Gradient defaults ─────────────────────────────────────────────────────────
-// 0.35 peak — you feel the pulse, you don't consciously see it.
 const double kPulseGradientPeak    = 0.35;
 const double kSweepSpeedMultiplier = 1.0;
 
-// ── Animation durations ───────────────────────────────────────────────────────
-// 8s gradient + 6s particle feel organic — like breathing, not restless.
 const Duration kDefaultGradientDuration = Duration(seconds: 8);
 const Duration kDefaultParticleDuration = Duration(seconds: 6);
+
+// Depth-mesh zone intensities (alpha fractions, 0–1)
+// Keep these very subtle — they layer on top of the gradient.
+const double _kDepthNearAlpha   = 0.06;  // subtle top highlight
+const double _kDepthMidAlpha    = 0.04;  // faint mid-ground tint
+const double _kDepthFarAlpha    = 0.05;  // distant corner darkening
+const double _kDepthAccentAlpha = 0.03;  // warm accent whisper
 
 // ─────────────────────────────────────────────────────────────────────────────
 // END CONFIG BLOCK
@@ -85,57 +54,30 @@ const Duration kDefaultParticleDuration = Duration(seconds: 6);
 // ENUMS
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// The overall background visual type.
-///
-/// [meshParticle]  — animated gradient + floating particle field. Default.
-/// [constellation] — connected node network drifting slowly.
-/// [aurora]        — PLACEHOLDER: slow flowing horizontal light bands.
-/// [noise]         — PLACEHOLDER: animated grain/noise texture overlay.
-/// [topography]    — PLACEHOLDER: subtle contour / topographic line patterns.
-/// [grid]          — PLACEHOLDER: animated dot-grid or line-grid.
 enum BackgroundType { meshParticle, constellation, aurora, noise, topography, grid }
-
-/// Controls how particles move within [BackgroundType.meshParticle].
-///
-/// [drift]  — upward float with gentle sine sway. Original WellPath behaviour.
-/// [orbit]  — each particle orbits a fixed anchor in a circle.
-/// [pulse]  — particles stay in place and grow/shrink rhythmically.
-/// [rain]   — particles fall downward, reset at top when they exit.
-/// [snow]   — slow diagonal drift, randomised speed per particle.
-enum ParticleStyle { drift, orbit, pulse, rain, snow }
-
-/// Controls how the background gradient animates.
-///
-/// [pulse]  — lerps between background and lighter brand tone. Default.
-/// [sweep]  — gradient alignment slowly rotates around 360°.
-/// [mesh]   — static dual-radial mesh from AppGradients. No animation.
-/// [solid]  — flat AppColors.background. No gradient.
-enum GradientStyle { pulse, sweep, mesh, solid }
+enum ParticleStyle  { drift, orbit, pulse, rain, snow }
+enum GradientStyle  { pulse, sweep, mesh, solid }
 
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AppCanvas
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// WellPath's animated visual canvas widget.
-///
-/// Drop around any Scaffold body for the full effect with zero configuration.
-/// Use [showParticles] and [showGradient] for per-page motion control.
-///
-/// All colors derive from AppColors → BrandColors in app_branding.dart.
-/// Change the brand seeds there and the canvas regenerates automatically.
 class AppCanvas extends StatefulWidget {
   final Widget child;
   final BackgroundType type;
   final ParticleStyle particleStyle;
   final GradientStyle gradientStyle;
   final int particleCount;
-
-  /// Set false to skip the particle layer on this page. Gradient still renders.
   final bool showParticles;
-
-  /// Set false to render a plain solid background. Use on visually dense pages.
   final bool showGradient;
+
+  /// When true, adds subtle radial-gradient depth zones that make parallax
+  /// scrolling feel more three-dimensional. Keep meshIntensity ≤ 1.0.
+  final bool showDepthMesh;
+
+  /// Scales all depth-zone opacities. 1.0 = defaults above. 0 = invisible.
+  final double meshIntensity;
 
   final Duration gradientDuration;
   final Duration particleDuration;
@@ -149,6 +91,8 @@ class AppCanvas extends StatefulWidget {
     this.particleCount    = kDefaultParticleCount,
     this.showParticles    = kDefaultShowParticles,
     this.showGradient     = kDefaultShowGradient,
+    this.showDepthMesh    = false,
+    this.meshIntensity    = 1.0,
     this.gradientDuration = kDefaultGradientDuration,
     this.particleDuration = kDefaultParticleDuration,
   });
@@ -166,11 +110,9 @@ class _AppCanvasState extends State<AppCanvas> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _gradientCtrl = AnimationController(
-      vsync: this, duration: widget.gradientDuration,
-    )..repeat(reverse: true);
+      vsync: this, duration: widget.gradientDuration)..repeat(reverse: true);
     _particleCtrl = AnimationController(
-      vsync: this, duration: widget.particleDuration,
-    )..repeat();
+      vsync: this, duration: widget.particleDuration)..repeat();
   }
 
   @override
@@ -193,7 +135,7 @@ class _AppCanvasState extends State<AppCanvas> with TickerProviderStateMixin {
           fit: StackFit.expand,
           children: [
 
-            // Layer 1 — gradient or solid fallback
+            // Layer 1 — gradient
             widget.showGradient
                 ? _GradientLayer(
                     gradientStyle: widget.gradientStyle,
@@ -201,8 +143,11 @@ class _AppCanvasState extends State<AppCanvas> with TickerProviderStateMixin {
                   )
                 : Container(color: AppColors.background),
 
-            // Layer 2 — particle field (skipped entirely when showParticles is
-            // false — no wasted CustomPaint per frame with nothing to draw)
+            // Layer 2 — depth mesh zones (subtle radial gradients)
+            if (widget.showDepthMesh)
+              _DepthMeshOverlay(intensity: widget.meshIntensity),
+
+            // Layer 3 — particles
             if (widget.showParticles &&
                 widget.type == BackgroundType.meshParticle)
               AnimatedBuilder(
@@ -231,7 +176,7 @@ class _AppCanvasState extends State<AppCanvas> with TickerProviderStateMixin {
                 ),
               ),
 
-            // Layer 3 — content always on top
+            // Layer 4 — content
             widget.child,
           ],
         );
@@ -244,6 +189,97 @@ class _AppCanvasState extends State<AppCanvas> with TickerProviderStateMixin {
       t == BackgroundType.noise      ||
       t == BackgroundType.topography ||
       t == BackgroundType.grid;
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _DepthMeshOverlay
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Four radial gradient zones create a subtle depth map:
+//
+//   NEAR ZONE   (top-left)    — bright primary highlight: simulates a light
+//                               source in the foreground, closest to viewer.
+//   MID ZONE    (centre-left) — surfaceLit tint: mid-ground ambient scatter.
+//   FAR ZONE    (bottom-right) — primaryDeep: far-field darkening.
+//   ACCENT ZONE (top-right)   — secondary whisper: atmospheric colour cast.
+//
+// Parallax moves the canvas beneath the content. Because each zone is at a
+// different canvas position, the parallax translation appears to move distinct
+// "depth layers" — making the effect perceivably 3-D.
+//
+// All alphas are intentionally very low. The effect should be felt, not seen.
+
+class _DepthMeshOverlay extends StatelessWidget {
+  final double intensity;
+  const _DepthMeshOverlay({required this.intensity});
+
+  int _alpha(double fraction) =>
+      (255 * fraction * intensity.clamp(0.0, 1.0)).round().clamp(0, 255);
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Near zone — top-left light source
+        Container(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: const Alignment(-0.7, -0.8),
+              radius: 1.1,
+              colors: [
+                AppColors.primaryLight.withAlpha(_alpha(_kDepthNearAlpha)),
+                Colors.transparent,
+              ],
+            ),
+          ),
+        ),
+
+        // Mid-ground zone — centre-left ambient
+        Container(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: const Alignment(-0.2, 0.1),
+              radius: 0.75,
+              colors: [
+                AppColors.surfaceLit.withAlpha(_alpha(_kDepthMidAlpha)),
+                Colors.transparent,
+              ],
+            ),
+          ),
+        ),
+
+        // Far zone — bottom-right depth darkening
+        Container(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: const Alignment(0.85, 0.90),
+              radius: 1.2,
+              colors: [
+                AppColors.primaryDeep.withAlpha(_alpha(_kDepthFarAlpha)),
+                Colors.transparent,
+              ],
+            ),
+          ),
+        ),
+
+        // Accent zone — top-right atmospheric cast
+        Container(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: const Alignment(0.75, -0.65),
+              radius: 0.85,
+              colors: [
+                AppColors.secondary.withAlpha(_alpha(_kDepthAccentAlpha)),
+                Colors.transparent,
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 
@@ -262,9 +298,6 @@ class _GradientLayer extends StatelessWidget {
     switch (gradientStyle) {
 
       case GradientStyle.pulse:
-        // Lerps from the dark base toward a lighter brand tone on each cycle.
-        // At progress 0.0 → dark base. At kPulseGradientPeak → surfaceMid.
-        // Feels like the screen is breathing.
         final start = Color.lerp(
           AppColors.background, AppColors.surfaceMid,
           progress * kPulseGradientPeak,
@@ -283,7 +316,6 @@ class _GradientLayer extends StatelessWidget {
         );
 
       case GradientStyle.sweep:
-        // Gradient alignment traces a circle — light source appears to rotate.
         final angle = progress * 2 * pi * kSweepSpeedMultiplier;
         return Container(
           decoration: BoxDecoration(
@@ -297,15 +329,11 @@ class _GradientLayer extends StatelessWidget {
         );
 
       case GradientStyle.mesh:
-        // Static dual-radial bloom — calmer, for content-heavy pages.
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            Container(color: AppColors.background),
-            Container(decoration: BoxDecoration(gradient: AppGradients.meshPrimary)),
-            Container(decoration: BoxDecoration(gradient: AppGradients.meshSecondary)),
-          ],
-        );
+        return Stack(fit: StackFit.expand, children: [
+          Container(color: AppColors.background),
+          Container(decoration: BoxDecoration(gradient: AppGradients.meshPrimary)),
+          Container(decoration: BoxDecoration(gradient: AppGradients.meshSecondary)),
+        ]);
 
       case GradientStyle.solid:
         return Container(color: AppColors.background);
@@ -315,7 +343,7 @@ class _GradientLayer extends StatelessWidget {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _ParticlePainter
+// _ParticlePainter — unchanged
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ParticlePainter extends CustomPainter {
@@ -325,10 +353,8 @@ class _ParticlePainter extends CustomPainter {
   final Color particleColor;
 
   _ParticlePainter({
-    required this.progress,
-    required this.style,
-    required this.count,
-    required this.particleColor,
+    required this.progress, required this.style,
+    required this.count, required this.particleColor,
   });
 
   @override
@@ -343,73 +369,62 @@ class _ParticlePainter extends CustomPainter {
   }
 
   Paint _paint(double alpha) => Paint()
-    ..color = particleColor.withAlpha(
-        (kParticleAlpha * alpha).round().clamp(0, 255));
+    ..color = particleColor.withAlpha((kParticleAlpha * alpha).round().clamp(0, 255));
 
   void _paintDrift(Canvas canvas, Size size) {
     for (int i = 0; i < count; i++) {
-      final dx     = (size.width / count) * i + sin(progress * pi * 2 + i) * 40;
-      final dy     = (size.height * progress + i * (size.height / count)) % size.height;
-      final radius = kParticleRadiusMin +
-          (sin(progress * pi + i).abs() * (kParticleRadiusMax - kParticleRadiusMin));
-      canvas.drawCircle(Offset(dx, dy), radius, _paint(1.0));
+      final dx = (size.width / count) * i + sin(progress * pi * 2 + i) * 40;
+      final dy = (size.height * progress + i * (size.height / count)) % size.height;
+      final r  = kParticleRadiusMin + sin(progress * pi + i).abs() * (kParticleRadiusMax - kParticleRadiusMin);
+      canvas.drawCircle(Offset(dx, dy), r, _paint(1.0));
     }
   }
 
   void _paintOrbit(Canvas canvas, Size size) {
-    final cols  = sqrt(count.toDouble()).ceil();
-    final rows  = (count / cols).ceil();
+    final cols = sqrt(count.toDouble()).ceil();
+    final rows = (count / cols).ceil();
     final cellW = size.width / cols;
     final cellH = size.height / rows;
     for (int i = 0; i < count; i++) {
-      final anchorX = cellW * (i % cols) + cellW / 2;
-      final anchorY = cellH * (i ~/ cols) + cellH / 2;
-      final phase   = progress * 2 * pi + i * 0.8;
-      final radius  = kParticleRadiusMin +
-          sin(phase * 0.5).abs() * (kParticleRadiusMax - kParticleRadiusMin);
-      canvas.drawCircle(
-        Offset(anchorX + cos(phase) * kOrbitRadius,
-               anchorY + sin(phase) * kOrbitRadius),
-        radius, _paint(1.0),
-      );
+      final ax = cellW * (i % cols) + cellW / 2;
+      final ay = cellH * (i ~/ cols) + cellH / 2;
+      final ph = progress * 2 * pi + i * 0.8;
+      final r  = kParticleRadiusMin + sin(ph * 0.5).abs() * (kParticleRadiusMax - kParticleRadiusMin);
+      canvas.drawCircle(Offset(ax + cos(ph) * kOrbitRadius, ay + sin(ph) * kOrbitRadius), r, _paint(1.0));
     }
   }
 
   void _paintPulse(Canvas canvas, Size size) {
     for (int i = 0; i < count; i++) {
-      final dx    = (size.width  / count) * i + (i % 5) * 15.0;
-      final dy    = (size.height / count) * (count - i) + (i % 3) * 20.0;
-      final phase = progress * 2 * pi + i * pi / count * 4;
+      final dx = (size.width / count) * i + (i % 5) * 15.0;
+      final dy = (size.height / count) * (count - i) + (i % 3) * 20.0;
+      final ph = progress * 2 * pi + i * pi / count * 4;
       canvas.drawCircle(
         Offset(dx % size.width, dy % size.height),
-        kParticleRadiusMin + sin(phase).abs() * (kParticleRadiusMax - kParticleRadiusMin),
-        _paint(0.3 + sin(phase).abs() * 0.7),
-      );
+        kParticleRadiusMin + sin(ph).abs() * (kParticleRadiusMax - kParticleRadiusMin),
+        _paint(0.3 + sin(ph).abs() * 0.7));
     }
   }
 
   void _paintRain(Canvas canvas, Size size) {
     for (int i = 0; i < count; i++) {
-      final speedOffset = (i * 0.07) % 1.0;
-      final dx    = (i * (size.width / count) + i * 37) % size.width;
-      final dy    = size.height * ((progress + speedOffset) % 1.0);
-      final alpha = sin((dy / size.height) * pi).clamp(0.0, 1.0);
-      canvas.drawCircle(Offset(dx, dy),
-          kParticleRadiusMin + (i % 3) * 1.0, _paint(alpha));
+      final so = (i * 0.07) % 1.0;
+      final dx = (i * (size.width / count) + i * 37) % size.width;
+      final dy = size.height * ((progress + so) % 1.0);
+      canvas.drawCircle(Offset(dx, dy), kParticleRadiusMin + (i % 3) * 1.0,
+          _paint(sin((dy / size.height) * pi).clamp(0.0, 1.0)));
     }
   }
 
   void _paintSnow(Canvas canvas, Size size) {
     for (int i = 0; i < count; i++) {
-      final speed  = 0.2 + (i * 0.03) % 0.8;
-      final sway   = sin(progress * pi * 2 + i * 1.3) * 20;
-      final startX = (i * (size.width / count) + i * 23) % size.width;
-      final dx     = (startX + sway + progress * size.width * 0.15) % size.width;
-      final dy     = size.height * ((progress * speed + i * 0.1) % 1.0);
-      final radius = kParticleRadiusMin +
-          sin(i.toDouble()).abs() * (kParticleRadiusMax - kParticleRadiusMin) * 0.5;
-      canvas.drawCircle(Offset(dx, dy), radius,
-          _paint(0.6 + sin(progress * pi + i).abs() * 0.4));
+      final speed = 0.2 + (i * 0.03) % 0.8;
+      final sway  = sin(progress * pi * 2 + i * 1.3) * 20;
+      final sx    = (i * (size.width / count) + i * 23) % size.width;
+      final dx    = (sx + sway + progress * size.width * 0.15) % size.width;
+      final dy    = size.height * ((progress * speed + i * 0.1) % 1.0);
+      final r     = kParticleRadiusMin + sin(i.toDouble()).abs() * (kParticleRadiusMax - kParticleRadiusMin) * 0.5;
+      canvas.drawCircle(Offset(dx, dy), r, _paint(0.6 + sin(progress * pi + i).abs() * 0.4));
     }
   }
 
@@ -420,7 +435,7 @@ class _ParticlePainter extends CustomPainter {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _ConstellationPainter
+// _ConstellationPainter — unchanged
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ConstellationPainter extends CustomPainter {
@@ -431,12 +446,9 @@ class _ConstellationPainter extends CustomPainter {
   late final List<Offset> _basePositions;
 
   _ConstellationPainter({
-    required this.progress,
-    required this.nodeCount,
-    required this.nodeColor,
-    required this.lineColor,
+    required this.progress, required this.nodeCount,
+    required this.nodeColor, required this.lineColor,
   }) {
-    // Prime multipliers give good distribution without a Random instance.
     _basePositions = List.generate(nodeCount, (i) => Offset(
       ((i * 127 + 43) % 1000) / 1000.0,
       ((i * 311 + 97) % 1000) / 1000.0,
@@ -445,92 +457,67 @@ class _ConstellationPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final nodePaint = Paint()
-      ..color = nodeColor.withAlpha(kParticleAlpha + 20);
+    final nodePaint = Paint()..color = nodeColor.withAlpha(kParticleAlpha + 20);
     final linePaint = Paint()
       ..color       = lineColor.withAlpha((kParticleAlpha * 0.5).round())
       ..strokeWidth = 0.6;
 
-    final positions = _basePositions.map((base) {
-      return Offset(
-        (base.dx + sin(progress * 2 * pi + base.dy * 10) * 0.03) * size.width,
-        (base.dy + cos(progress * 2 * pi + base.dx * 10) * 0.02) * size.height,
-      );
-    }).toList();
+    final positions = _basePositions.map((base) => Offset(
+      (base.dx + sin(progress * 2 * pi + base.dy * 10) * 0.03) * size.width,
+      (base.dy + cos(progress * 2 * pi + base.dx * 10) * 0.02) * size.height,
+    )).toList();
 
     for (int i = 0; i < positions.length; i++) {
       final others = List<int>.generate(positions.length, (j) => j)
         ..remove(i)
-        ..sort((a, b) => (positions[a] - positions[i])
-            .distance
+        ..sort((a, b) => (positions[a] - positions[i]).distance
             .compareTo((positions[b] - positions[i]).distance));
-
       for (int k = 0; k < kConstellationConnections && k < others.length; k++) {
         final dist    = (positions[others[k]] - positions[i]).distance;
         final maxDist = size.width * 0.25;
         if (dist < maxDist) {
-          canvas.drawLine(
-            positions[i], positions[others[k]],
+          canvas.drawLine(positions[i], positions[others[k]],
             linePaint..color = lineColor.withAlpha(
-              ((1.0 - dist / maxDist) * (kParticleAlpha * 0.5)).round().clamp(0, 255),
-            ),
-          );
+              ((1.0 - dist / maxDist) * (kParticleAlpha * 0.5)).round().clamp(0, 255)));
         }
       }
     }
-
     for (final pos in positions) {
       canvas.drawCircle(pos, kParticleRadiusMin + 1, nodePaint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _ConstellationPainter old) =>
-      old.progress != progress;
+  bool shouldRepaint(covariant _ConstellationPainter old) => old.progress != progress;
 }
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _PlaceholderCanvas
+// _PlaceholderCanvas — unchanged
 // ─────────────────────────────────────────────────────────────────────────────
-//
-// Branded base so the app doesn't break while types are unimplemented.
-// Remove the debug Positioned label when implementing each type.
 
 class _PlaceholderCanvas extends StatelessWidget {
   final BackgroundType type;
   final Widget child;
-
   const _PlaceholderCanvas({required this.type, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Container(color: AppColors.background),
-        Container(decoration: BoxDecoration(gradient: AppGradients.meshPrimary)),
-
-        // Debug label — remove this Positioned block when implementing the type
-        Positioned(
-          right:  12,
-          bottom: 12,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color:        AppColors.tint10(AppColors.warning),
-              borderRadius: BorderRadius.circular(AppRadius.xs),
-              border:       Border.all(color: AppColors.tint20(AppColors.warning)),
-            ),
-            child: Text(
-              'Canvas: ${type.name} — not yet implemented',
-              style: AppTypography.caption.copyWith(color: AppColors.warning, fontSize: 9),
-            ),
+    return Stack(fit: StackFit.expand, children: [
+      Container(color: AppColors.background),
+      Container(decoration: BoxDecoration(gradient: AppGradients.meshPrimary)),
+      Positioned(right: 12, bottom: 12,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color:        AppColors.tint10(AppColors.warning),
+            borderRadius: BorderRadius.circular(AppRadius.xs),
+            border:       Border.all(color: AppColors.tint20(AppColors.warning)),
           ),
-        ),
-
-        child,
-      ],
-    );
+          child: Text('Canvas: ${type.name} — not yet implemented',
+            style: AppTypography.caption.copyWith(color: AppColors.warning, fontSize: 9)),
+        )),
+      child,
+    ]);
   }
 }

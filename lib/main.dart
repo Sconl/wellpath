@@ -23,8 +23,8 @@ import 'firebase_options.dart';
 import 'core/router/app_router.dart';
 import 'core/style/app_theme.dart';
 
-import 'features/notifications/notification_service.dart';
-import 'features/bookings/data/trainer_seed_data.dart';
+import 'spaces/notifications/notification_service.dart';
+import 'spaces/bookings/data/trainer_seed_data.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG
