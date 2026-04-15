@@ -80,6 +80,7 @@ const _kPublicRoutes = {
   '/pricing',
   '/login',
   '/signup',
+  '/admin',
   '/dev',
 };
 
