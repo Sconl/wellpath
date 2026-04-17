@@ -39,7 +39,8 @@ flutter run -d chrome --dart-define=GEMINI_API_KEY=AIzaSyC4h6SP-wTxAzmclwLE2d73R
 # Build
 flutter build web --release --dart-define=GEMINI_API_KEY=AIzaSyC4h6SP-wTxAzmclwLE2d73RVEicqgUC98
 
-# Deployflutter build web --release --dart-define=GEMINI_API_KEY=AIzaSyC4h6SP-wTxAzmclwLE2d73RVEicqgUC98
+# Deploy
+flutter build web --release --dart-define=GEMINI_API_KEY=AIzaSyC4h6SP-wTxAzmclwLE2d73RVEicqgUC98
 firebase deploy --only hosting
 
 ```

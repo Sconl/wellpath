@@ -8,6 +8,20 @@
 //   fromConfig(SpaceSiteConfig) → AdminLandingDraft   (seed draft from const)
 //   toConfig(AdminLandingDraft) → SpaceSiteConfig      (draft → live config)
 //
+// ─── ICON TREE-SHAKER NOTE ───────────────────────────────────────────────────
+//   Flutter's release icon tree-shaker rejects any non-constant IconData
+//   construction — including `IconData(someInt, fontFamily: 'MaterialIcons')`.
+//
+//   This mapper never constructs an IconData from a runtime value.  Instead:
+//     • fromConfig  uses AdminIconRegistry.nameOf(icon) to serialise the live
+//       IconData from SpaceSiteConfig into a string key for the draft.
+//     • toConfig    uses AdminIconRegistry.resolve(name) to deserialise the
+//       string key back into a compile-time-const IconData.
+//
+//   All IconData instances ultimately come from the const map inside
+//   AdminIconRegistry — the tree-shaker can enumerate them statically.
+// ─────────────────────────────────────────────────────────────────────────────
+//
 // Manifest path registry (directive §7):
 //   space_site.screen_home.section_core.hero.badge
 //   space_site.screen_home.section_core.hero.phrases[n]
@@ -31,13 +45,11 @@
 //   space_site.screen_home.flags.*
 // ─────────────────────────────────────────────────────────────────────────────
 
-import 'package:flutter/material.dart';
 import 'admin_schema.dart';
 
 // Import the site config — path will match your project after rename
 import '../../spaces/space_site/space_site_config.dart';
 import '../../core/navigation/nav_items.dart';
-import '../../core/style/app_motion.dart';
 import '../../core/style/app_branding.dart';
 
 abstract class AdminMapper {
@@ -79,10 +91,11 @@ abstract class AdminMapper {
         heading:    c.steps.heading,
         subheading: c.steps.subheading,
         steps: c.steps.steps.map((s) => AdminStep(
-          number:        s.number,
-          title:         s.title,
-          body:          s.body,
-          iconCodePoint: s.icon.codePoint,
+          number:   s.number,
+          title:    s.title,
+          body:     s.body,
+          // Serialise live IconData → registry name.  No new IconData created.
+          iconName: AdminIconRegistry.nameOf(s.icon),
         )).toList(),
       ),
 
@@ -93,7 +106,8 @@ abstract class AdminMapper {
         features: c.features.features.map((f) => AdminFeatureCard(
           title:              f.title,
           body:               f.body,
-          iconCodePoint:      f.icon.codePoint,
+          // Serialise live IconData → registry name.  No new IconData created.
+          iconName:           AdminIconRegistry.nameOf(f.icon),
           useSecondaryAccent: f.useSecondaryAccent,
         )).toList(),
       ),
@@ -170,9 +184,9 @@ abstract class AdminMapper {
       ),
 
       hero: SiteHeroConfig(
-        badge:             d.hero.badge,
+        badge:    d.hero.badge,
         headline: TypingTextConfig(
-          phrases:           d.hero.phrases,
+          phrases:             d.hero.phrases,
           headlineBlockHeight: 120,
         ),
         subline:           d.hero.subline,
@@ -206,7 +220,8 @@ abstract class AdminMapper {
           number: s.number,
           title:  s.title,
           body:   s.body,
-          icon:   IconData(s.iconCodePoint, fontFamily: 'MaterialIcons'),
+          // Resolve name → const IconData from registry.  Tree-shaker safe.
+          icon:   AdminIconRegistry.resolve(s.iconName),
         )).toList(),
       ),
 
@@ -215,9 +230,10 @@ abstract class AdminMapper {
         heading:    d.features.heading,
         subheading: d.features.subheading,
         features: d.features.features.map((f) => SpaceSiteFeature(
-          title:              f.title,
-          body:               f.body,
-          icon:               IconData(f.iconCodePoint, fontFamily: 'MaterialIcons'),
+          title: f.title,
+          body:  f.body,
+          // Resolve name → const IconData from registry.  Tree-shaker safe.
+          icon:               AdminIconRegistry.resolve(f.iconName),
           useSecondaryAccent: f.useSecondaryAccent,
         )).toList(),
       ),

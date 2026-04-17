@@ -3,45 +3,26 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // CHANGELOG
 // ─────────────────────────────────────────────────────────────────────────────
-//   v1.0.0 — Initial implementation. Dedicated admin portal login screen.
-//            Visually distinct from the user login: shield badge, warning-amber
-//            accent, "Restricted Access" messaging, no sign-up affordance,
-//            no image panel (single-column always — admin use is deliberate,
-//            not discovery-driven).
-//            Two-stage auth: Firebase signIn() → Firestore role check.
-//            Non-admin accounts are signed out immediately with a clear error.
-//            GoRouter redirect handles navigation to /admin on confirmed success.
-//   v1.0.1 — Layout update:
-//            • Removed shield badge at the top
-//            • Switched to the horizontal WellPath logo asset
+//   v1.0.0 — Initial. Two-stage auth (Firebase + Firestore role check).
+//   v1.0.1 — Shield badge removed. Switched to horizontal SVG logo.
+//   v1.0.2 — "ADMIN PORTAL" amber pill badge added ABOVE the logo.
+//            "Not an admin? Sign in as a regular user" link added at the
+//            bottom — routes to /login. Styled subtly; not a primary action.
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// ADMIN AUTH FLOW (why two stages):
-//   Stage 1 — Firebase Auth signIn(). Proves the credentials are valid.
-//   Stage 2 — Firestore users/{uid} role check. Proves the account has admin
-//              rights. Without stage 2, ANY valid Firebase Auth user could reach
-//              /admin if they knew the route — even if their role is 'user'.
-//
-//   On role mismatch: signOut() is called immediately before showing the error.
-//   This ensures no authenticated session lingers for a non-admin caller.
+// ADMIN AUTH FLOW (two stages, both required):
+//   Stage 1 — Firebase Auth signIn() → proves credentials are valid.
+//   Stage 2 — Firestore users/{uid} role check → proves role == 'admin'.
+//   On failure at stage 2: signOut() is called before the error surfaces —
+//   no authenticated session lingers for a non-admin caller.
 //
 // ADMIN ACCOUNT PROVISIONING:
-//   Admin accounts are NOT created through the public signup flow.
-//   They are provisioned in one of two ways:
+//   Option A (Firebase Console): Auth → Add user, then Firestore users/{uid}
+//     with role: 'admin' + standard fields.
+//   Option B (Cloud Function): setUserRole({ uid, role: 'admin' }).
 //
-//   Option A — Firebase Console (manual):
-//     1. Authentication → Add user → enter email + password
-//     2. Firestore → users/{uid} → Create document with:
-//          { uid, email, displayName, role: 'admin', createdAt, updatedAt,
-//            preferences: { dailyReminderEnabled: false, reminderTime: '20:00' } }
-//
-//   Option B — Cloud Function (programmatic):
-//     Call setUserRole({ uid, role: 'admin' }) — sets custom claim + updates
-//     the Firestore document. This function already exists in the project.
-//
-// CODESPACE RULES:
-//   File path on line 1 ✓  |  CHANGELOG ✓  |  CONFIG BLOCK ✓
-//   Comments explain WHY ✓  |  Complete file ✓
+// CODESPACE RULES: File path line 1 ✓ | CHANGELOG ✓ | CONFIG BLOCK ✓ |
+//   Comments explain WHY ✓ | Complete file ✓
 
 import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuthException;
 import 'package:flutter/material.dart';
@@ -66,15 +47,16 @@ const double kAdminFormMaxWidth = 400.0;
 const double kAdminFormPaddingH = 36.0;
 const double kAdminFormPaddingV = 52.0;
 
-// Warning amber alpha values — keep these subtle.
-// Too vivid and it looks alarming; too muted and the admin distinction is lost.
-const double kAdminAccentBgAlpha = 0.10; // "Restricted Access" caption
-const double kAdminAccentBorderAlpha = 0.28; // error banner / accent border
-const double kAdminAccentTextAlpha = 0.65; // "Restricted Access" caption
-const double kAdminAccentIconAlpha = 0.90; // any amber icon usage
+// Amber alpha values.
+// Low alphas are intentional — 'institutional', not 'alarming'.
+// The amber hue alone carries the distinction from the brand-green user login.
+const double kAdminPillBgAlpha     = 0.14; // pill fill
+const double kAdminPillBorderAlpha = 0.32; // pill border
+const double kAdminPillIconAlpha   = 0.85; // pill icon
+const double kAdminPillTextAlpha   = 0.90; // pill label text
+const double kAdminCaptionAlpha    = 0.60; // "Restricted Access" caption
 
 // Set to false before shipping to production.
-// While true, the real exception message surfaces in the error banner.
 const bool kDevMode = true;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -89,15 +71,15 @@ class AdminLoginScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final _formKey         = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  final _pwController = TextEditingController();
+  final _pwController    = TextEditingController();
 
-  bool _isLoading = false;
+  bool    _isLoading    = false;
   String? _errorMessage;
 
   final _emailFocus = FocusNode();
-  final _pwFocus = FocusNode();
+  final _pwFocus    = FocusNode();
 
   @override
   void dispose() {
@@ -108,99 +90,66 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
     super.dispose();
   }
 
-  // ── Submit ────────────────────────────────────────────────────────────────
-  //
-  // Two-stage auth:
-  //   1. Firebase signIn() — proves credentials are valid
-  //   2. Firestore role check — proves the account has 'admin' role
-  //
-  // If stage 2 fails, signOut() is called before the error is displayed.
-  // The GoRouter redirect guard handles navigation after a confirmed success.
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    setState(() { _isLoading = true; _errorMessage = null; });
 
     try {
-      // ── Stage 1: Firebase Auth ──────────────────────────────────────────
+      // Stage 1: Firebase Auth
       final credential = await ref.read(authRepositoryProvider).signIn(
-            email: _emailController.text.trim(),
-            password: _pwController.text,
-          );
-
+        email:    _emailController.text.trim(),
+        password: _pwController.text,
+      );
       final uid = credential.user?.uid;
-      if (uid == null) {
-        throw Exception('Firebase returned a null UID after sign-in.');
-      }
+      if (uid == null) throw Exception('Firebase returned a null UID.');
 
-      // ── Stage 2: Firestore role check ───────────────────────────────────
-      // .first gets one emission and closes the stream — a one-shot fetch.
-      // We don't use firestoreUserProvider here because the Riverpod stream
-      // may not have initialised yet for the freshly-signed-in user.
-      final userModel = await ref.read(authRepositoryProvider).userStream(uid).first;
+      // Stage 2: Firestore role check
+      // .first is a one-shot fetch — firestoreUserProvider may not have
+      // initialised for the freshly-signed-in user yet.
+      final userModel = await ref
+          .read(authRepositoryProvider)
+          .userStream(uid)
+          .first;
 
       if (userModel?.isAdmin != true) {
-        // Not an admin — revoke the session immediately and surface the error.
-        // This prevents a non-admin from having any authenticated state after
-        // this screen rejects them.
+        // Revoke immediately — no session for a non-admin.
         await ref.read(authRepositoryProvider).signOut();
         if (mounted) {
-          setState(
-            () => _errorMessage =
-                'This account does not have admin access. '
-                'Contact your system administrator to request access.',
-          );
+          setState(() => _errorMessage =
+              'This account does not have admin access. '
+              'Contact your system administrator to request access.');
         }
         return;
       }
+      // Admin confirmed — GoRouter fires and routes to /admin automatically.
 
-      // Stage 2 confirmed — admin role verified.
-      // GoRouter's authStateProvider + firestoreUserProvider redirect guard
-      // fires automatically and routes the user to /admin.
-      // No explicit context.go() needed here.
     } on FirebaseAuthException catch (e) {
       setState(() => _errorMessage = _mapFirebaseError(e.code));
     } catch (e, stack) {
-      debugPrint('[AdminLoginScreen] error: $e');
-      debugPrint('$stack');
-      setState(() => _errorMessage = kDevMode
-          ? 'DEBUG: $e'
-          : 'Something went wrong. Please try again.');
+      debugPrint('[AdminLoginScreen] $e\n$stack');
+      setState(() => _errorMessage =
+          kDevMode ? 'DEBUG: $e' : 'Something went wrong. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  String _mapFirebaseError(String code) {
-    switch (code) {
-      case 'user-not-found':
-      case 'invalid-credential':
-        return 'No account found with these credentials.';
-      case 'wrong-password':
-        return 'Incorrect password. Please try again.';
-      case 'invalid-email':
-        return 'Please enter a valid email address.';
-      case 'too-many-requests':
-        return 'Too many failed attempts. Wait a few minutes and try again.';
-      case 'network-request-failed':
-        return 'Connection error. Check your internet connection.';
-      case 'user-disabled':
-        return 'This admin account has been disabled.';
-      default:
-        return 'Firebase error: $code';
-    }
-  }
-
-  // ── Build ─────────────────────────────────────────────────────────────────
+  String _mapFirebaseError(String code) => switch (code) {
+    'user-not-found'         => 'No account found with these credentials.',
+    'invalid-credential'     => 'No account found with these credentials.',
+    'wrong-password'         => 'Incorrect password. Please try again.',
+    'invalid-email'          => 'Please enter a valid email address.',
+    'too-many-requests'      => 'Too many failed attempts. Wait a few minutes.',
+    'network-request-failed' => 'Connection error. Check your internet.',
+    'user-disabled'          => 'This admin account has been disabled.',
+    _                        => 'Firebase error: $code',
+  };
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: AppCanvas(
-        type: BackgroundType.meshParticle,
+        type:          BackgroundType.meshParticle,
         particleStyle: ParticleStyle.drift,
         gradientStyle: GradientStyle.pulse,
         child: SafeArea(
@@ -210,40 +159,39 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
                   horizontal: kAdminFormPaddingH,
-                  vertical: kAdminFormPaddingV,
+                  vertical:   kAdminFormPaddingV,
                 ),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // ── Horizontal logo + header ─────────────────────
+
+                      // ── 1. ADMIN PORTAL pill badge ─────────────────────
+                      // Amber pill above the logo: visitor reads context
+                      // ("ADMIN PORTAL") → product ("WellPath") → restriction
+                      // ("Restricted Access…") in a natural top-down flow.
+                      Center(child: _AdminPortalPill()),
+                      const SizedBox(height: 16),
+
+                      // ── 2. WellPath horizontal logo ────────────────────
                       Center(
                         child: SvgPicture.asset(
                           _kLogoHorizontal,
-                          width: 220,
-                          fit: BoxFit.contain,
+                          width: 200,
+                          fit:   BoxFit.contain,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Center(
-                        child: Text(
-                          'Admin Portal',
-                          style: AppTypography.h4.copyWith(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 10),
+
+                      // ── 3. Restricted access caption ───────────────────
                       Center(
                         child: Text(
                           'Restricted Access  ·  Authorized Personnel Only',
                           textAlign: TextAlign.center,
                           style: AppTypography.caption.copyWith(
                             color: AppColors.warning.withValues(
-                              alpha: kAdminAccentTextAlpha,
+                              alpha: kAdminCaptionAlpha,
                             ),
                             letterSpacing: 0.2,
                           ),
@@ -251,41 +199,37 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                       ),
                       SizedBox(height: AppSpacing.xxl),
 
-                      // ── Email ──────────────────────────────────────────
+                      // ── 4. Email ───────────────────────────────────────
                       WellPathField(
-                        controller: _emailController,
-                        label: 'Admin Email',
-                        focusNode: _emailFocus,
-                        keyboardType: TextInputType.emailAddress,
+                        controller:      _emailController,
+                        label:           'Admin Email',
+                        focusNode:       _emailFocus,
+                        keyboardType:    TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
-                        autofocus: true,
+                        autofocus:       true,
                         onEditingComplete: () => _pwFocus.requestFocus(),
                         prefixIcon: const Icon(
                           Icons.email_outlined,
-                          color: AppColors.textMuted,
-                          size: 20,
+                          color: AppColors.textMuted, size: 20,
                         ),
                         validator: (v) {
-                          if (v == null || v.trim().isEmpty) {
-                            return 'Email is required';
-                          }
+                          if (v == null || v.trim().isEmpty) return 'Email is required';
                           return null;
                         },
                       ),
                       SizedBox(height: AppSpacing.md),
 
-                      // ── Password ───────────────────────────────────────
+                      // ── 5. Password ────────────────────────────────────
                       WellPathField(
-                        controller: _pwController,
-                        label: 'Admin Password',
-                        obscureText: true,
-                        focusNode: _pwFocus,
+                        controller:      _pwController,
+                        label:           'Admin Password',
+                        obscureText:     true,
+                        focusNode:       _pwFocus,
                         textInputAction: TextInputAction.done,
                         onEditingComplete: _submit,
                         prefixIcon: const Icon(
                           Icons.lock_outline,
-                          color: AppColors.textMuted,
-                          size: 20,
+                          color: AppColors.textMuted, size: 20,
                         ),
                         validator: (v) {
                           if (v == null || v.isEmpty) return 'Password is required';
@@ -294,12 +238,12 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                       ),
                       SizedBox(height: AppSpacing.md),
 
-                      // ── Error banner ───────────────────────────────────
+                      // ── 6. Error banner ────────────────────────────────
                       if (_errorMessage != null) ...[
                         Container(
                           padding: EdgeInsets.symmetric(
                             horizontal: AppSpacing.sm + 6,
-                            vertical: AppSpacing.sm + 2,
+                            vertical:   AppSpacing.sm + 2,
                           ),
                           decoration: AppDecorations.errorBanner,
                           child: Row(
@@ -307,11 +251,8 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                             children: [
                               const Padding(
                                 padding: EdgeInsets.only(top: 1),
-                                child: Icon(
-                                  Icons.error_outline,
-                                  color: AppColors.error,
-                                  size: 16,
-                                ),
+                                child: Icon(Icons.error_outline,
+                                    color: AppColors.error, size: 16),
                               ),
                               SizedBox(width: AppSpacing.sm),
                               Expanded(
@@ -327,54 +268,69 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                         SizedBox(height: AppSpacing.sm + 4),
                       ],
 
-                      // ── CTA button ─────────────────────────────────────
+                      // ── 7. CTA button ──────────────────────────────────
                       WellPathButton(
-                        label: 'Sign In as Admin',
+                        label:     'Sign In as Admin',
                         isLoading: _isLoading,
                         onPressed: _isLoading ? null : _submit,
                       ),
                       SizedBox(height: AppSpacing.xl),
 
-                      // ── Separator + provisioning note ──────────────────
-                      // A subtle visual divider to separate the form from the
-                      // informational footer. Reinforces that this is a
-                      // controlled-access portal, not an open signup flow.
+                      // ── 8. Separator + provisioning note ───────────────
                       const WellPathDivider(label: 'ADMIN PORTAL'),
                       SizedBox(height: AppSpacing.md),
                       Text(
-                        'Admin access is restricted to authorized personnel.\n'
-                        'Accounts are provisioned internally — '
-                        'contact your system administrator for access.',
+                        'Admin access is restricted to authorized personnel.',
                         textAlign: TextAlign.center,
                         style: AppTypography.caption.copyWith(
-                          color: AppColors.textMuted,
-                          height: 1.5,
+                          color: AppColors.textMuted, height: 1.5,
                         ),
                       ),
                       SizedBox(height: AppSpacing.xl),
 
-                      // ── Back to site ───────────────────────────────────
+                      // ── 9. "Sign in as regular user" link ──────────────
+                      // Subtle secondary action — for visitors who landed here
+                      // by mistake, or admins who also have regular accounts.
+                      // Not styled as a button; it should not compete with the
+                      // primary CTA.
+                      Center(
+                        child: GestureDetector(
+                          onTap: () => context.go('/login'),
+                          child: Text.rich(
+                            TextSpan(children: [
+                              TextSpan(
+                                text:  'Not an admin?  ',
+                                style: AppTypography.caption
+                                    .copyWith(color: AppColors.textMuted),
+                              ),
+                              TextSpan(
+                                text:  'Sign in as a regular user',
+                                style: AppTypography.caption.copyWith(
+                                  color:      AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ]),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: AppSpacing.md),
+
+                      // ── 10. Back to site ───────────────────────────────
                       Center(
                         child: GestureDetector(
                           onTap: () => context.go('/landing'),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.arrow_back_rounded,
-                                size: 14,
-                                color: AppColors.textMuted,
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.arrow_back_rounded,
+                                size: 14, color: AppColors.textMuted),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Back to WellPath',
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.textMuted, fontSize: 12,
                               ),
-                              const SizedBox(width: 5),
-                              Text(
-                                'Back to WellPath',
-                                style: AppTypography.caption.copyWith(
-                                  color: AppColors.textMuted,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ]),
                         ),
                       ),
                     ],
@@ -385,6 +341,54 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _AdminPortalPill
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Amber pill badge. Positioned ABOVE the WellPath logo so the information
+// hierarchy reads: context ("ADMIN PORTAL") → product ("WellPath") →
+// access note ("Restricted Access…").
+//
+// The amber hue is deliberately different from the brand green so the admin
+// portal is unmistakably distinct from the regular login — without being
+// alarmist. Low alpha values keep the tone institutional.
+
+class _AdminPortalPill extends StatelessWidget {
+  const _AdminPortalPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+      decoration: BoxDecoration(
+        color:        AppColors.warning.withValues(alpha: kAdminPillBgAlpha),
+        borderRadius: BorderRadius.circular(50),
+        border: Border.all(
+          color: AppColors.warning.withValues(alpha: kAdminPillBorderAlpha),
+          width: 1.0,
+        ),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(
+          Icons.admin_panel_settings_outlined,
+          size:  11,
+          color: AppColors.warning.withValues(alpha: kAdminPillIconAlpha),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          'ADMIN PORTAL',
+          style: AppTypography.overline.copyWith(
+            color:         AppColors.warning.withValues(alpha: kAdminPillTextAlpha),
+            fontSize:      9,
+            fontWeight:    FontWeight.w700,
+            letterSpacing: 1.4,
+          ),
+        ),
+      ]),
     );
   }
 }
