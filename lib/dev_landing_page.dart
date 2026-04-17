@@ -15,7 +15,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'core/style/app_branding.dart';
 import 'core/style/app_theme.dart';
 import 'core/style/app_canvas.dart';
 import 'core/style/app_decorations.dart';

@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/style/app_theme.dart';
 import '../../../core/admin/admin_state.dart';
-import '../../../core/admin/admin_schema.dart';
 import '../../../core/admin/q_admin_form.dart';
 
 class ScreenAdminContent extends ConsumerWidget {

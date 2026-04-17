@@ -29,6 +29,24 @@
 //            • /admin/features
 //            • /admin/preview
 //            Each route is wrapped in QAdminShell.
+//   v3.4.0 — Admin login flow + proper admin route protection:
+//            • /admin-login route added (AdminLoginScreen) — public.
+//            • /admin removed from _kPublicRoutes — it is now a PROTECTED route.
+//            • New helper isAdminRoute: true for /admin and all /admin/* paths.
+//            • Redirect logic restructured with explicit admin cases:
+//                – Not logged in + admin route       → /admin-login
+//                – Not logged in + public route      → pass through
+//                – Not logged in + protected route   → /login
+//                – Logged in admin + public route    → /admin
+//                – Logged in admin + admin route     → pass through
+//                – Logged in non-admin + admin route → /home (not /admin-login,
+//                  because they ARE authenticated — they just lack the role)
+//                – Logged in trainer + /home         → /trainer-dashboard
+//                – Logged in user + /trainer-dash    → /home
+//            • Footer admin link updated: routes to /admin-login not /admin.
+//              This means clicking "Admin" always shows the admin login screen
+//              first — even if you're already logged in as a regular user,
+//              you'll be bounced to /home via the redirect. Clean.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/material.dart';
@@ -37,7 +55,6 @@ import 'package:go_router/go_router.dart';
 
 // ── Public / marketing screens ────────────────────────────────────────────────
 import '../../spaces/space_site/screen_home/screen_home_main.dart';
-import '../../spaces/space_site/wellpath_config.dart';
 import '../../dev_landing_page.dart';
 import '../../spaces/space_site/screen_about/about_screen.dart';
 import '../../spaces/space_site/screen_features/features_screen.dart';
@@ -46,6 +63,7 @@ import '../../spaces/space_site/screen_pricing/pricing_screen.dart';
 // ── Auth screens ──────────────────────────────────────────────────────────────
 import '../../spaces/auth/presentation/login_screen.dart';
 import '../../spaces/auth/presentation/signup_screen.dart';
+import '../../spaces/auth/presentation/admin_login_screen.dart';
 import '../../spaces/auth/providers/auth_providers.dart';
 
 // ── Authenticated screens ─────────────────────────────────────────────────────
@@ -70,8 +88,14 @@ import '../../core/admin/screens/screen_admin_preview.dart';
 // CONFIG
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Routes that never require authentication.
-/// Auth redirect logic only redirects to /login for routes NOT in this set.
+/// Routes that never require Firebase Auth.
+///
+/// NOTE: '/admin' is deliberately NOT in this set as of v3.4.0.
+/// Admin routes are protected — unauthenticated visitors are redirected to
+/// /admin-login; authenticated non-admins are redirected to /home.
+///
+/// '/admin-login' IS public — it is the entry point for the admin flow,
+/// and must be reachable without any prior session.
 const _kPublicRoutes = {
   '/',
   '/landing',
@@ -80,7 +104,7 @@ const _kPublicRoutes = {
   '/pricing',
   '/login',
   '/signup',
-  '/admin',
+  '/admin-login', // Admin login entry point — public, but redirect-guarded
   '/dev',
 };
 
@@ -109,114 +133,151 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final loc = state.uri.path;
 
+      // ── Auth state ───────────────────────────────────────────────────────
       final authAsync = ref.read(authStateProvider);
       if (authAsync.isLoading) return null;
 
-      final isLoggedIn = authAsync.value != null;
+      final isLoggedIn    = authAsync.value != null;
       final isPublicRoute = _kPublicRoutes.contains(loc);
 
-      // Not logged in: public routes pass through, protected routes → /login.
-      if (!isLoggedIn) return isPublicRoute ? null : '/login';
+      // isAdminRoute: true for /admin itself and all /admin/* sub-routes.
+      // This is computed BEFORE any login check so unauthenticated visitors
+      // to /admin are correctly sent to /admin-login rather than /login.
+      // Note: '/admin-login' does NOT match — it starts with '/admin-' not '/admin/'.
+      final isAdminRoute  = loc == '/admin' || loc.startsWith('/admin/');
 
-      // Wait for Firestore user data to resolve.
-      final userAsync = ref.read(firestoreUserProvider);
-      if (userAsync.isLoading) return null;
-      final isTrainer = userAsync.value?.isTrainer == true;
-
-      // Logged-in users on public/landing routes → their home screen.
-      if (isPublicRoute) {
-        return isTrainer ? '/trainer-dashboard' : '/home';
+      // ── Not logged in ────────────────────────────────────────────────────
+      if (!isLoggedIn) {
+        if (isAdminRoute) return '/admin-login'; // Admin routes → admin gate
+        if (isPublicRoute) return null;           // Public routes → pass through
+        return '/login';                          // Protected routes → user gate
       }
 
-      // Role enforcement.
-      if (loc == '/trainer-dashboard' && !isTrainer) return '/home';
-      if (loc == '/home' && isTrainer) return '/trainer-dashboard';
+      // ── Logged in: wait for Firestore user document ─────────────────────
+      final userAsync = ref.read(firestoreUserProvider);
+      if (userAsync.isLoading) return null;
 
+      final isAdmin   = userAsync.value?.isAdmin   == true;
+      final isTrainer = userAsync.value?.isTrainer  == true;
+
+      // ── Logged-in user on a public / landing route ───────────────────────
+      // Send each role to its own home screen.
+      // The /admin-login route is included here via isPublicRoute — an already-
+      // authenticated admin who navigates to /admin-login gets sent straight to
+      // /admin instead of seeing the login form again.
+      if (isPublicRoute) {
+        if (isAdmin)   return '/admin';
+        if (isTrainer) return '/trainer-dashboard';
+        return '/home';
+      }
+
+      // ── Admin routes: require 'admin' role ───────────────────────────────
+      // If a non-admin reaches an admin route (e.g. by typing the URL directly),
+      // redirect to /home — they are authenticated but lack the required role.
+      // We do NOT send them to /admin-login because they already have a session;
+      // sending them to login again would be confusing. /home is the safe landing.
+      if (isAdminRoute && !isAdmin) return '/home';
+
+      // ── Role enforcement for non-admin app routes ────────────────────────
+      if (loc == '/trainer-dashboard' && !isTrainer) return '/home';
+      if (loc == '/home' && isTrainer)               return '/trainer-dashboard';
+
+      // All other cases — pass through.
       return null;
     },
     routes: [
-      // ── ROOT ─────────────────────────────────────────────────────────────
+
+      // ── ROOT ───────────────────────────────────────────────────────────────
       GoRoute(path: '/', redirect: (_, __) => '/landing'),
 
-      // ── MARKETING — PUBLIC ────────────────────────────────────────────────
+      // ── MARKETING — PUBLIC ─────────────────────────────────────────────────
 
       GoRoute(
-        path: '/landing',
-        name: 'landing',
+        path:    '/landing',
+        name:    'landing',
         builder: (ctx, state) => const SiteLandingPage(),
       ),
 
       GoRoute(
-        path: '/about',
-        name: 'about',
+        path:    '/about',
+        name:    'about',
         builder: (_, __) => const AboutScreen(),
       ),
 
       GoRoute(
-        path: '/features',
-        name: 'features',
+        path:    '/features',
+        name:    'features',
         builder: (_, __) => const FeaturesScreen(),
       ),
 
       GoRoute(
-        path: '/pricing',
-        name: 'pricing',
+        path:    '/pricing',
+        name:    'pricing',
         builder: (_, __) => const PricingScreen(),
       ),
 
       // Developer roadmap page (accessible from production landing footer)
       GoRoute(
-        path: '/dev',
-        name: 'devLanding',
+        path:    '/dev',
+        name:    'devLanding',
         builder: (_, __) => const DevLandingPage(),
       ),
 
-      // ── AUTH ──────────────────────────────────────────────────────────────
+      // ── AUTH ───────────────────────────────────────────────────────────────
 
       GoRoute(
-        path: '/login',
-        name: 'login',
+        path:    '/login',
+        name:    'login',
         builder: (_, __) => const LoginScreen(),
       ),
 
       GoRoute(
-        path: '/signup',
-        name: 'signup',
+        path:    '/signup',
+        name:    'signup',
         builder: (_, __) => const SignupScreen(),
       ),
 
-      // ── HOME ─────────────────────────────────────────────────────────────
+      // Admin login — separate entry point from /login.
+      // Visually distinct (shield badge, restricted access messaging).
+      // Two-stage auth: Firebase signIn() + Firestore role == 'admin' check.
+      GoRoute(
+        path:    '/admin-login',
+        name:    'adminLogin',
+        builder: (_, __) => const AdminLoginScreen(),
+      ),
+
+      // ── HOME ───────────────────────────────────────────────────────────────
 
       GoRoute(
-        path: '/home',
-        name: 'home',
+        path:    '/home',
+        name:    'home',
         builder: (_, __) => NotificationBannerHost(child: const HomeScreen()),
       ),
 
-      // ── DISCOVER / TRAINERS ───────────────────────────────────────────────
+      // ── DISCOVER / TRAINERS ────────────────────────────────────────────────
       // /discover redirects to /trainers — FABs + deep links remain valid.
       GoRoute(path: '/discover', redirect: (_, __) => '/trainers'),
 
       GoRoute(
-        path: '/trainers',
-        name: 'trainers',
+        path:    '/trainers',
+        name:    'trainers',
         builder: (_, __) => NotificationBannerHost(child: const TrainersScreen()),
       ),
 
-      // ── GYMS ─────────────────────────────────────────────────────────────
+      // ── GYMS ───────────────────────────────────────────────────────────────
 
       GoRoute(
-        path: '/gyms',
-        name: 'gyms',
+        path:    '/gyms',
+        name:    'gyms',
         builder: (_, __) => NotificationBannerHost(child: const GymsScreen()),
       ),
 
-      // ── TRAINER PROFILE ───────────────────────────────────────────────────
+      // ── TRAINER PROFILE ────────────────────────────────────────────────────
       // Canonical source: discover/presentation/trainer_profile_screen.dart
 
       GoRoute(
-        path: '/trainer/:id',
-        name: 'trainerProfile',
+        path:    '/trainer/:id',
+        name:    'trainerProfile',
         builder: (_, state) => NotificationBannerHost(
           child: TrainerProfileScreen(
             trainerId: state.pathParameters['id'] ?? '',
@@ -224,69 +285,77 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
-      // ── BOOKINGS ──────────────────────────────────────────────────────────
+      // ── BOOKINGS ───────────────────────────────────────────────────────────
 
       GoRoute(
-        path: '/bookings',
-        name: 'bookings',
+        path:    '/bookings',
+        name:    'bookings',
         builder: (_, __) => NotificationBannerHost(child: const BookingsScreen()),
       ),
 
-      // ── WELLNESS ─────────────────────────────────────────────────────────
+      // ── WELLNESS ───────────────────────────────────────────────────────────
 
       GoRoute(
-        path: '/wellness',
-        name: 'wellness',
+        path:    '/wellness',
+        name:    'wellness',
         builder: (_, __) => NotificationBannerHost(child: const WellnessScreen()),
       ),
 
-      // ── PROFILE + SETTINGS ────────────────────────────────────────────────
+      // ── PROFILE + SETTINGS ─────────────────────────────────────────────────
 
       GoRoute(
-        path: '/profile',
-        name: 'profile',
+        path:    '/profile',
+        name:    'profile',
         builder: (_, __) => NotificationBannerHost(child: const ProfileScreen()),
       ),
 
-      // ── ADMIN ─────────────────────────────────────────────────────────────
-      // Wrapped in QAdminShell as requested.
+      // ── ADMIN ──────────────────────────────────────────────────────────────
+      //
+      // All admin routes are PROTECTED (role == 'admin') — enforced in the
+      // redirect block above. QAdminShell wraps each screen with the sidebar
+      // navigation + publish toolbar.
+      //
+      // Defense-in-depth: the redirect guard is the primary protection.
+      // QAdminShell itself can add a secondary role check in a future revision
+      // (see q_admin_shell.dart) if additional hardening is desired.
+
       GoRoute(
-        path: '/admin',
-        name: 'adminOverview',
+        path:    '/admin',
+        name:    'adminOverview',
         builder: (_, __) => QAdminShell(child: ScreenAdminOverview()),
       ),
       GoRoute(
-        path: '/admin/content',
-        name: 'adminContent',
+        path:    '/admin/content',
+        name:    'adminContent',
         builder: (_, __) => QAdminShell(child: ScreenAdminContent()),
       ),
       GoRoute(
-        path: '/admin/brand',
-        name: 'adminBrand',
+        path:    '/admin/brand',
+        name:    'adminBrand',
         builder: (_, __) => QAdminShell(child: ScreenAdminBrand()),
       ),
       GoRoute(
-        path: '/admin/features',
-        name: 'adminFeatures',
+        path:    '/admin/features',
+        name:    'adminFeatures',
         builder: (_, __) => QAdminShell(child: ScreenAdminFeatures()),
       ),
       GoRoute(
-        path: '/admin/preview',
-        name: 'adminPreview',
+        path:    '/admin/preview',
+        name:    'adminPreview',
         builder: (_, __) => QAdminShell(child: ScreenAdminPreview()),
       ),
 
-      // ── TRAINER DASHBOARD ─────────────────────────────────────────────────
+      // ── TRAINER DASHBOARD ──────────────────────────────────────────────────
 
       GoRoute(
-        path: '/trainer-dashboard',
-        name: 'trainerDashboard',
+        path:    '/trainer-dashboard',
+        name:    'trainerDashboard',
         builder: (_, __) => NotificationBannerHost(
           child: const HomeScreen(isTrainerView: true),
         ),
       ),
 
-      // ── TRAINER AVAILABILITY ─────────────────────────────────────────────
+      // ── TRAINER AVAILABILITY ───────────────────────────────────────────────
       // Placeholder — AvailabilityScreen ships Week 5.
 
       GoRoute(
@@ -295,8 +364,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => NotificationBannerHost(
           child: const _PlaceholderScreen(
             title: 'Manage Availability',
-            icon: Icons.event_available_outlined,
-            week: 'Week 5',
+            icon:  Icons.event_available_outlined,
+            week:  'Week 5',
           ),
         ),
       ),
@@ -327,9 +396,10 @@ final routerProvider = Provider<GoRouter>((ref) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _PlaceholderScreen extends StatelessWidget {
-  final String title;
+  final String   title;
   final IconData icon;
-  final String week;
+  final String   week;
+
   const _PlaceholderScreen({
     required this.title,
     required this.icon,
@@ -341,7 +411,7 @@ class _PlaceholderScreen extends StatelessWidget {
         backgroundColor: const Color(0xFF020E08),
         appBar: AppBar(
           backgroundColor: Colors.transparent,
-          elevation: 0,
+          elevation:       0,
           title: Text(
             title,
             style: const TextStyle(color: Colors.white, fontSize: 16),
@@ -352,7 +422,8 @@ class _PlaceholderScreen extends StatelessWidget {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(icon, color: Colors.white12, size: 56),
             const SizedBox(height: 20),
-            Text(title, style: const TextStyle(color: Colors.white54, fontSize: 18)),
+            Text(title,
+                style: const TextStyle(color: Colors.white54, fontSize: 18)),
             const SizedBox(height: 8),
             Text('Coming $week',
                 style: const TextStyle(color: Colors.white24, fontSize: 12)),

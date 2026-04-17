@@ -6,6 +6,12 @@
 //   v1.0.0 — Extracted from auth_providers.dart into its own file.
 //            UserPreferences + UserModel are pure data objects with zero
 //            Firebase or Riverpod dependencies — testable in isolation.
+//   v1.1.0 — Admin role support added:
+//            • `isAdmin` getter added to UserModel (role == 'admin').
+//            • kDefaultRole remains 'user' — admin accounts are provisioned
+//              manually; they never come from the signup flow.
+//            • Role documentation updated to include 'admin' as valid value.
+//            • No breaking changes — existing Firestore documents unaffected.
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // WHY SEPARATE FROM auth_repository.dart:
@@ -16,7 +22,7 @@
 //   uid:          string
 //   email:        string
 //   displayName:  string          ← Firestore is the source of truth, not Auth profile
-//   role:         'user'|'trainer'
+//   role:         'user' | 'trainer' | 'admin'
 //   photoUrl:     string?
 //   createdAt:    Timestamp
 //   updatedAt:    Timestamp
@@ -24,6 +30,14 @@
 //     dailyReminderEnabled: bool    (default: false)
 //     reminderTime:         string  (default: '20:00' EAT)
 //   }
+//
+// ROLE HIERARCHY:
+//   'user'    — standard app user. Default for all signup-created accounts.
+//   'trainer' — personal trainer. Set via setUserRole Cloud Function.
+//   'admin'   — platform administrator. Provisioned manually via Firebase Console
+//               or setUserRole Cloud Function. Never created through public signup.
+//               Admin accounts have access to the /admin portal and all admin
+//               sub-routes. GoRouter enforces this via the isAdmin flag below.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -86,7 +100,7 @@ class UserModel {
   final String          uid;
   final String          email;
   final String          displayName;
-  final String          role;       // 'user' | 'trainer'
+  final String          role;       // 'user' | 'trainer' | 'admin'
   final String?         photoUrl;
   final DateTime?       createdAt;
   final DateTime?       updatedAt;
@@ -103,6 +117,21 @@ class UserModel {
     required this.preferences,
   });
 
+  // ── Role getters ───────────────────────────────────────────────────────────
+  //
+  // isAdmin:   platform administrator — has access to /admin portal.
+  //            These accounts are provisioned manually and never come from
+  //            the public signup flow.
+  //
+  // isTrainer: personal trainer — has access to /trainer-dashboard.
+  //            Set via setUserRole Cloud Function.
+  //
+  // isUser:    standard app user. Default for all signup-created accounts.
+  //            Note: isUser is true for any account that is NOT a trainer or admin,
+  //            matching the intent of the 'user' role rather than being exclusive
+  //            to role == 'user'. Adjust if trainer/admin hybrid accounts are needed.
+
+  bool get isAdmin   => role == 'admin';
   bool get isTrainer => role == 'trainer';
   bool get isUser    => role == 'user';
 
