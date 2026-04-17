@@ -18,11 +18,6 @@ class ScreenAdminFeatures extends ConsumerWidget {
     final flags = ref.watch(adminDraftProvider).flags;
     final n     = ref.read(adminDraftProvider.notifier);
 
-    void toggle(bool Function(bool) updater, String field) {
-      // Use copyWith via the notifier's toggleFlag helper
-      n.updateFlags(flags);
-    }
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

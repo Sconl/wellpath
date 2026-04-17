@@ -11,6 +11,9 @@
 //            Two-stage auth: Firebase signIn() → Firestore role check.
 //            Non-admin accounts are signed out immediately with a clear error.
 //            GoRouter redirect handles navigation to /admin on confirmed success.
+//   v1.0.1 — Layout update:
+//            • Removed shield badge at the top
+//            • Switched to the horizontal WellPath logo asset
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // ADMIN AUTH FLOW (why two stages):
@@ -43,12 +46,12 @@
 import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuthException;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/style/app_theme.dart';
 import '../../../core/style/app_canvas.dart';
 import '../../../core/style/app_decorations.dart';
-import '../../../core/style/app_branding.dart';
 import '../providers/auth_providers.dart';
 import 'widgets/auth_widgets.dart';
 
@@ -56,19 +59,19 @@ import 'widgets/auth_widgets.dart';
 // CONFIG BLOCK
 // ─────────────────────────────────────────────────────────────────────────────
 
-const double kAdminFormMaxWidth   = 400.0;
-const double kAdminFormPaddingH   = 36.0;
-const double kAdminFormPaddingV   = 52.0;
-const double kAdminShieldBoxSize  = 56.0;
-const double kAdminShieldIconSize = 26.0;
-const double kAdminShieldRadius   = 16.0;
+const String _kLogoHorizontal =
+    'assets/logos/20260326_wellpath_logo_horizontal_primary_color.svg';
+
+const double kAdminFormMaxWidth = 400.0;
+const double kAdminFormPaddingH = 36.0;
+const double kAdminFormPaddingV = 52.0;
 
 // Warning amber alpha values — keep these subtle.
 // Too vivid and it looks alarming; too muted and the admin distinction is lost.
-const double kAdminAccentBgAlpha     = 0.10; // shield container fill
-const double kAdminAccentBorderAlpha = 0.28; // shield container border
-const double kAdminAccentTextAlpha   = 0.65; // "Restricted Access" caption
-const double kAdminAccentIconAlpha   = 0.90; // shield icon
+const double kAdminAccentBgAlpha = 0.10; // "Restricted Access" caption
+const double kAdminAccentBorderAlpha = 0.28; // error banner / accent border
+const double kAdminAccentTextAlpha = 0.65; // "Restricted Access" caption
+const double kAdminAccentIconAlpha = 0.90; // any amber icon usage
 
 // Set to false before shipping to production.
 // While true, the real exception message surfaces in the error banner.
@@ -86,15 +89,15 @@ class AdminLoginScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
-  final _formKey          = GlobalKey<FormState>();
-  final _emailController  = TextEditingController();
-  final _pwController     = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _pwController = TextEditingController();
 
-  bool    _isLoading    = false;
+  bool _isLoading = false;
   String? _errorMessage;
 
   final _emailFocus = FocusNode();
-  final _pwFocus    = FocusNode();
+  final _pwFocus = FocusNode();
 
   @override
   void dispose() {
@@ -117,28 +120,27 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() {
-      _isLoading    = true;
+      _isLoading = true;
       _errorMessage = null;
     });
 
     try {
       // ── Stage 1: Firebase Auth ──────────────────────────────────────────
       final credential = await ref.read(authRepositoryProvider).signIn(
-        email:    _emailController.text.trim(),
-        password: _pwController.text,
-      );
+            email: _emailController.text.trim(),
+            password: _pwController.text,
+          );
 
       final uid = credential.user?.uid;
-      if (uid == null) throw Exception('Firebase returned a null UID after sign-in.');
+      if (uid == null) {
+        throw Exception('Firebase returned a null UID after sign-in.');
+      }
 
       // ── Stage 2: Firestore role check ───────────────────────────────────
       // .first gets one emission and closes the stream — a one-shot fetch.
       // We don't use firestoreUserProvider here because the Riverpod stream
       // may not have initialised yet for the freshly-signed-in user.
-      final userModel = await ref
-          .read(authRepositoryProvider)
-          .userStream(uid)
-          .first;
+      final userModel = await ref.read(authRepositoryProvider).userStream(uid).first;
 
       if (userModel?.isAdmin != true) {
         // Not an admin — revoke the session immediately and surface the error.
@@ -146,9 +148,11 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
         // this screen rejects them.
         await ref.read(authRepositoryProvider).signOut();
         if (mounted) {
-          setState(() => _errorMessage =
-              'This account does not have admin access. '
-              'Contact your system administrator to request access.');
+          setState(
+            () => _errorMessage =
+                'This account does not have admin access. '
+                'Contact your system administrator to request access.',
+          );
         }
         return;
       }
@@ -157,7 +161,6 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
       // GoRouter's authStateProvider + firestoreUserProvider redirect guard
       // fires automatically and routes the user to /admin.
       // No explicit context.go() needed here.
-
     } on FirebaseAuthException catch (e) {
       setState(() => _errorMessage = _mapFirebaseError(e.code));
     } catch (e, stack) {
@@ -197,7 +200,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: AppCanvas(
-        type:          BackgroundType.meshParticle,
+        type: BackgroundType.meshParticle,
         particleStyle: ParticleStyle.drift,
         gradientStyle: GradientStyle.pulse,
         child: SafeArea(
@@ -207,26 +210,27 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
                   horizontal: kAdminFormPaddingH,
-                  vertical:   kAdminFormPaddingV,
+                  vertical: kAdminFormPaddingV,
                 ),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-
-                      // ── Shield badge + header ──────────────────────────
-                      Center(child: _AdminShieldBadge()),
-                      const SizedBox(height: 20),
+                      // ── Horizontal logo + header ─────────────────────
                       Center(
-                        child: BrandLogoEngine.verticalColored(),
+                        child: SvgPicture.asset(
+                          _kLogoHorizontal,
+                          width: 220,
+                          fit: BoxFit.contain,
+                        ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       Center(
                         child: Text(
                           'Admin Portal',
                           style: AppTypography.h4.copyWith(
-                            color:      AppColors.textPrimary,
+                            color: AppColors.textPrimary,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 0.3,
                           ),
@@ -249,17 +253,17 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
 
                       // ── Email ──────────────────────────────────────────
                       WellPathField(
-                        controller:      _emailController,
-                        label:           'Admin Email',
-                        focusNode:       _emailFocus,
-                        keyboardType:    TextInputType.emailAddress,
+                        controller: _emailController,
+                        label: 'Admin Email',
+                        focusNode: _emailFocus,
+                        keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
-                        autofocus:       true,
+                        autofocus: true,
                         onEditingComplete: () => _pwFocus.requestFocus(),
                         prefixIcon: const Icon(
                           Icons.email_outlined,
                           color: AppColors.textMuted,
-                          size:  20,
+                          size: 20,
                         ),
                         validator: (v) {
                           if (v == null || v.trim().isEmpty) {
@@ -272,16 +276,16 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
 
                       // ── Password ───────────────────────────────────────
                       WellPathField(
-                        controller:      _pwController,
-                        label:           'Admin Password',
-                        obscureText:     true,
-                        focusNode:       _pwFocus,
+                        controller: _pwController,
+                        label: 'Admin Password',
+                        obscureText: true,
+                        focusNode: _pwFocus,
                         textInputAction: TextInputAction.done,
                         onEditingComplete: _submit,
                         prefixIcon: const Icon(
                           Icons.lock_outline,
                           color: AppColors.textMuted,
-                          size:  20,
+                          size: 20,
                         ),
                         validator: (v) {
                           if (v == null || v.isEmpty) return 'Password is required';
@@ -295,7 +299,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                         Container(
                           padding: EdgeInsets.symmetric(
                             horizontal: AppSpacing.sm + 6,
-                            vertical:   AppSpacing.sm + 2,
+                            vertical: AppSpacing.sm + 2,
                           ),
                           decoration: AppDecorations.errorBanner,
                           child: Row(
@@ -306,7 +310,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                                 child: Icon(
                                   Icons.error_outline,
                                   color: AppColors.error,
-                                  size:  16,
+                                  size: 16,
                                 ),
                               ),
                               SizedBox(width: AppSpacing.sm),
@@ -325,7 +329,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
 
                       // ── CTA button ─────────────────────────────────────
                       WellPathButton(
-                        label:     'Sign In as Admin',
+                        label: 'Sign In as Admin',
                         isLoading: _isLoading,
                         onPressed: _isLoading ? null : _submit,
                       ),
@@ -343,7 +347,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                         'contact your system administrator for access.',
                         textAlign: TextAlign.center,
                         style: AppTypography.caption.copyWith(
-                          color:  AppColors.textMuted,
+                          color: AppColors.textMuted,
                           height: 1.5,
                         ),
                       ),
@@ -358,14 +362,14 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                             children: [
                               const Icon(
                                 Icons.arrow_back_rounded,
-                                size:  14,
+                                size: 14,
                                 color: AppColors.textMuted,
                               ),
                               const SizedBox(width: 5),
                               Text(
                                 'Back to WellPath',
                                 style: AppTypography.caption.copyWith(
-                                  color:    AppColors.textMuted,
+                                  color: AppColors.textMuted,
                                   fontSize: 12,
                                 ),
                               ),
@@ -379,40 +383,6 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _AdminShieldBadge
-// ─────────────────────────────────────────────────────────────────────────────
-//
-// A rounded container with a warning-amber tint that holds the shield icon.
-// The amber hue is deliberately different from the brand green — it signals
-// "this area requires elevated privileges" without being alarming.
-// Alpha values are tuned low so it reads as institutional, not dangerous.
-
-class _AdminShieldBadge extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width:  kAdminShieldBoxSize,
-      height: kAdminShieldBoxSize,
-      decoration: BoxDecoration(
-        color: AppColors.warning.withValues(alpha: kAdminAccentBgAlpha),
-        borderRadius: BorderRadius.circular(kAdminShieldRadius),
-        border: Border.all(
-          color: AppColors.warning.withValues(alpha: kAdminAccentBorderAlpha),
-          width: 1.5,
-        ),
-      ),
-      child: Center(
-        child: Icon(
-          Icons.admin_panel_settings_rounded,
-          size:  kAdminShieldIconSize,
-          color: AppColors.warning.withValues(alpha: kAdminAccentIconAlpha),
         ),
       ),
     );

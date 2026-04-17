@@ -47,6 +47,9 @@
 //              This means clicking "Admin" always shows the admin login screen
 //              first — even if you're already logged in as a regular user,
 //              you'll be bounced to /home via the redirect. Clean.
+//   v3.4.1 — Admin trainers route added:
+//            • /admin/trainers
+//            • Wrapped in QAdminShell
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/material.dart';
@@ -83,6 +86,7 @@ import '../../core/admin/screens/screen_admin_content.dart';
 import '../../core/admin/screens/screen_admin_brand.dart';
 import '../../core/admin/screens/screen_admin_features.dart';
 import '../../core/admin/screens/screen_admin_preview.dart';
+import '../../core/admin/screens/screen_admin_trainers.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG
@@ -343,6 +347,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path:    '/admin/preview',
         name:    'adminPreview',
         builder: (_, __) => QAdminShell(child: ScreenAdminPreview()),
+      ),
+      GoRoute(
+        path:    '/admin/trainers',
+        name:    'adminTrainers',
+        builder: (_, __) => QAdminShell(child: ScreenAdminTrainers()),
       ),
 
       // ── TRAINER DASHBOARD ──────────────────────────────────────────────────
