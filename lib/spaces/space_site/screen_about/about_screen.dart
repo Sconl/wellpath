@@ -7,7 +7,6 @@ import '../../../core/navigation/nav_items.dart';
 import '../../../core/style/app_branding.dart';
 import '../../../core/style/app_theme.dart';
 import '../../../core/style/app_canvas.dart';
-import '../../../core/style/app_decorations.dart';
 import '../../../core/style/app_motion.dart';
 import '../../../core/widgets/app_fab.dart';
 import '../../../core/widgets/developer_feedback_chat.dart';
