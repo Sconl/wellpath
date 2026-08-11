@@ -34,13 +34,13 @@ If you prefer manual commands:
 
 ```bash
 # Run
-flutter run -d chrome --dart-define=GEMINI_API_KEY=AIzaSyC4h6SP-wTxAzmclwLE2d73RVEicqgUC98
+flutter run -d chrome --dart-define=GEMINI_API_KEY=<YOUR_GEMINI_API_KEY>
 
 # Build
-flutter build web --release --dart-define=GEMINI_API_KEY=AIzaSyC4h6SP-wTxAzmclwLE2d73RVEicqgUC98
+flutter build web --release --dart-define=GEMINI_API_KEY=<YOUR_GEMINI_API_KEY>
 
 # Deploy
-flutter build web --release --dart-define=GEMINI_API_KEY=AIzaSyC4h6SP-wTxAzmclwLE2d73RVEicqgUC98
+flutter build web --release --dart-define=GEMINI_API_KEY=<YOUR_GEMINI_API_KEY>
 firebase deploy --only hosting
 
 ```
@@ -75,7 +75,7 @@ To enable AI in CI/CD deployments:
 
    | Secret Name | Value |
    |-------------|-------|
-   | `GEMINI_API_KEY` | `AIzaSyC4h6SP-wTxAzmclwLE2d73RVEicqgUC98` |
+   | `GEMINI_API_KEY` | `<YOUR_GEMINI_API_KEY>` |
    | `WELLPATH_FIREBASE_DEPLOY_DEV` | Your Firebase CI token for dev |
    | `WELLPATH_FIREBASE_DEPLOY_PROD` | Your Firebase CI token for prod |
 

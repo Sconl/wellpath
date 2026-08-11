@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/models/trainer_profile.dart';
 import '../../../core/style/app_canvas.dart';
-import '../../../core/style/app_decorations.dart';
 import '../../../core/style/app_theme.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../bookings/data/availability_model.dart';

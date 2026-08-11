@@ -66,7 +66,7 @@ import '../../core/models/trainer_profile.dart';
 const double _kHorizPad = 24.0;
 const double _kVertPad = 24.0;
 const double _kCardGap = 14.0;
-const double _kBreakWide = 900.0; // kept for trainer dashboard
+// const double _kBreakWide = 900.0; // kept for trainer dashboard
 const double _kBreakMid = 550.0;  // single-column reflow threshold
 
 // ── Card 1 — Nearby Map ──

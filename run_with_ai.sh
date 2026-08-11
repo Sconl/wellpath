@@ -8,7 +8,7 @@ if [ -f ".env" ]; then
 fi
 
 # Set default API key if not set
-export GEMINI_API_KEY=${GEMINI_API_KEY:-"AIzaSyC4h6SP-wTxAzmclwLE2d73RVEicqgUC98"}
+export GEMINI_API_KEY=${GEMINI_API_KEY:-"${GEMINI_API_KEY:?set GEMINI_API_KEY in your environment}"}
 
 echo "🚀 Running Flutter with AI support..."
 echo "GEMINI_API_KEY: ${GEMINI_API_KEY:0:20}..."
