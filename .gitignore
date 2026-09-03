@@ -137,4 +137,4 @@ test-output/
 
 # Temporary files
 *.tmp
-*.temp
+*.temp_handoff/
