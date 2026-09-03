@@ -1,0 +1,28 @@
+#!/bin/bash
+# GitHub Secrets Setup Helper for WellPath AI
+# This script provides instructions for setting up GitHub secrets
+
+echo "🔑 WellPath GitHub Secrets Setup"
+echo "================================"
+echo ""
+echo "To enable AI chat in GitHub Actions deployments, you need to set up secrets:"
+echo ""
+echo "1. Go to: https://github.com/YOUR_USERNAME/wellpath-fitness/settings/secrets/actions"
+echo ""
+echo "2. Add these secrets:"
+echo ""
+echo "   GEMINI_API_KEY"
+echo "   └─ Value: ${GEMINI_API_KEY:?set GEMINI_API_KEY in your environment}"
+echo ""
+echo "   WELLPATH_FIREBASE_DEPLOY_DEV"
+echo "   └─ Get this by running: firebase login:ci"
+echo "     (Use your dev Firebase project)"
+echo ""
+echo "   WELLPATH_FIREBASE_DEPLOY_PROD"
+echo "   └─ Get this by running: firebase login:ci"
+echo "     (Use your prod Firebase project)"
+echo ""
+echo "3. Push to dev/main branches to trigger deployments with AI support"
+echo ""
+echo "✅ Security: Secrets are encrypted and only available during CI/CD builds"
+echo "🚫 Never commit API keys to version control"

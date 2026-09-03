@@ -1,0 +1,44 @@
+name: WellPath Firebase Production Deploy
+
+# Deploys to Firebase Hosting production on push to main/master
+# AI chat is enabled via GEMINI_API_KEY secret (GitHub repository secret)
+# Security: API key is not stored in code, only available during build
+# Production note: Consider Firebase Cloud Functions for AI proxy in high-traffic apps
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Flutter Version
+        run: flutter --version
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Flutter Web
+        run: flutter build web --release --dart-define=GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase Hosting (Production)
+        env:
+          FIREBASE_TOKEN: ${{ secrets.WELLPATH_FIREBASE_DEPLOY_PROD }}
+        run: |
+          firebase deploy --only hosting
